@@ -72,10 +72,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
         <div className="flex items-center justify-between p-4 border-b border-primary-800">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gold-500 rounded-lg flex items-center justify-center">
-                <span className="text-primary-900 font-bold text-lg">Z</span>
-              </div>
-              <span className="text-xl font-bold">Zenovia</span>
+              <img 
+                src="/Image/apple-touch-icon.png" 
+                alt="Zenovia Logo" 
+                className="w-10 h-10 object-contain rounded-lg"
+              />
+              <span className="text-xl font-bold text-white">ZENOVIA</span>
             </div>
           )}
           
@@ -90,9 +92,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           </button>
 
           {isCollapsed && (
-            <div className="w-8 h-8 bg-gold-500 rounded-lg flex items-center justify-center mx-auto">
-              <span className="text-primary-900 font-bold text-lg">Z</span>
-            </div>
+            <img 
+              src="/Image/apple-touch-icon.png" 
+              alt="Zenovia Logo" 
+              className="w-8 h-8 object-contain rounded-lg mx-auto"
+            />
           )}
         </div>
 

@@ -9,7 +9,12 @@ const Users = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const usersPerPage = 10;
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const usersPerPage = 20;
 
   // Filter users based on search and status
   const filteredUsers = users.filter(user => {
@@ -42,11 +47,40 @@ const Users = () => {
     }
   };
 
-  const handleDeleteUser = (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      // Here you would typically make an API call to delete the user
-      console.log('Deleting user:', userId);
-    }
+  const handleDeleteUser = (userId, userName) => {
+    setUserToDelete({ id: userId, name: userName });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteUser = () => {
+    console.log('Deleting user:', userToDelete.id);
+    // Here you would typically make an API call to delete the user
+    setShowDeleteModal(false);
+    setUserToDelete(null);
+    alert('User deleted successfully!');
+  };
+
+  const cancelDeleteUser = () => {
+    setShowDeleteModal(false);
+    setUserToDelete(null);
+  };
+
+  const handleViewUser = (user) => {
+    setSelectedUser(user);
+    setShowViewModal(true);
+  };
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateUser = (updatedData) => {
+    // Here you would typically make an API call to update the user
+    console.log('Updating user:', selectedUser.id, updatedData);
+    alert('User updated successfully!');
+    setShowEditModal(false);
+    setSelectedUser(null);
   };
 
   const handleBulkAction = (action) => {
@@ -109,6 +143,208 @@ const Users = () => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+
+  // View User Modal Component
+  const ViewUserModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">User Details</h3>
+          <button 
+            onClick={() => {setShowViewModal(false); setSelectedUser(null);}}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+        
+        {selectedUser && (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4 mb-4">
+              <div className="w-16 h-16 bg-primary-900 rounded-full flex items-center justify-center">
+                <span className="text-white text-xl font-bold">
+                  {selectedUser.name.charAt(0)}
+                </span>
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900">{selectedUser.name}</h4>
+                <p className="text-gray-600">{selectedUser.id}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Email</label>
+                <p className="text-gray-900">{selectedUser.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Phone</label>
+                <p className="text-gray-900">{selectedUser.phone}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Join Date</label>
+                <p className="text-gray-900">{formatDate(selectedUser.joinDate)}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Total Bookings</label>
+                <p className="text-gray-900">{selectedUser.totalBookings}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Total Spent</label>
+                <p className="text-gray-900">{formatCurrency(selectedUser.totalSpent)}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Status</label>
+                <span className={getStatusColor(selectedUser.status)}>
+                  {selectedUser.status}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 pt-4">
+              <button 
+                onClick={() => {setShowViewModal(false); setSelectedUser(null);}}
+                className="btn-secondary flex-1"
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => {setShowViewModal(false); handleEditUser(selectedUser);}}
+                className="btn-primary flex-1"
+              >
+                Edit User
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Edit User Modal Component
+  const EditUserModal = () => {
+    const [editForm, setEditForm] = useState({
+      name: selectedUser?.name || '',
+      email: selectedUser?.email || '',
+      phone: selectedUser?.phone || '',
+      status: selectedUser?.status || 'Active'
+    });
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      handleUpdateUser(editForm);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+            <button 
+              onClick={() => {setShowEditModal(false); setSelectedUser(null);}}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="form-label">Full Name</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                value={editForm.name}
+                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                placeholder="Enter full name" 
+                required
+              />
+            </div>
+            <div>
+              <label className="form-label">Email Address</label>
+              <input 
+                type="email" 
+                className="form-input" 
+                value={editForm.email}
+                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                placeholder="Enter email address" 
+                required
+              />
+            </div>
+            <div>
+              <label className="form-label">Phone Number</label>
+              <input 
+                type="tel" 
+                className="form-input" 
+                value={editForm.phone}
+                onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                placeholder="Enter phone number" 
+                required
+              />
+            </div>
+            <div>
+              <label className="form-label">Status</label>
+              <select 
+                className="form-input"
+                value={editForm.status}
+                onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            
+            <div className="flex space-x-3 pt-4">
+              <button type="submit" className="btn-primary flex-1">
+                Update User
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {setShowEditModal(false); setSelectedUser(null);}}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  // Delete Confirmation Modal Component
+  const DeleteConfirmationModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+          <Trash2 className="w-6 h-6 text-red-600" />
+        </div>
+        
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete User</h3>
+          <p className="text-gray-600 mb-4">
+            Are you sure you want to delete <strong>{userToDelete?.name}</strong>? 
+            This action cannot be undone and will permanently remove all associated data.
+          </p>
+          
+          <div className="flex space-x-3">
+            <button 
+              onClick={cancelDeleteUser}
+              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={confirmDeleteUser}
+              className="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
+            >
+              Delete User
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -301,15 +537,24 @@ const Users = () => {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center space-x-2">
-                      <button className="p-1 text-primary-900 hover:text-primary-700">
+                      <button 
+                        onClick={() => handleViewUser(user)}
+                        className="p-1 text-primary-900 hover:text-primary-700"
+                        title="View User"
+                      >
                         <Eye size={16} />
                       </button>
-                      <button className="p-1 text-gray-600 hover:text-gray-800">
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="p-1 text-gray-600 hover:text-gray-800"
+                        title="Edit User"
+                      >
                         <Edit3 size={16} />
                       </button>
                       <button 
-                        onClick={() => handleDeleteUser(user.id)}
+                        onClick={() => handleDeleteUser(user.id, user.name)}
                         className="p-1 text-red-600 hover:text-red-800"
+                        title="Delete User"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -362,6 +607,15 @@ const Users = () => {
 
       {/* Add User Modal */}
       {showAddModal && <AddUserModal />}
+      
+      {/* View User Modal */}
+      {showViewModal && <ViewUserModal />}
+      
+      {/* Edit User Modal */}
+      {showEditModal && <EditUserModal />}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && <DeleteConfirmationModal />}
     </div>
   );
 };
