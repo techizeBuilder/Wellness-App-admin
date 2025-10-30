@@ -26,24 +26,48 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    try {
+      // Call backend admin login endpoint
+      // Use explicit backend URL for development
+      const backendUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
+      const res = await fetch(`${backendUrl}/api/admin/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: formData.email, password: formData.password })
+      });
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      const data = await res.json();
+      if (!res.ok) {
+        // show backend message if available
+        setError(data && data.message ? data.message : 'Invalid email or password');
+        setLoading(false);
+        return;
+      }
 
-    // Dummy authentication check
-    if (formData.email === 'admin@zenovia.com' && formData.password === 'admin123') {
+      // Expect { success: true, data: { token, admin } }
+      const token = data.data.token;
+      const admin = data.data.admin;
+
+      if (!token || !admin) {
+        setError('Invalid server response');
+        setLoading(false);
+        return;
+      }
+
+      // Save token and admin info
       localStorage.setItem('adminAuth', 'true');
-      localStorage.setItem('adminUser', JSON.stringify({
-        email: formData.email,
-        name: 'Admin User',
-        role: 'Super Admin'
-      }));
+      localStorage.setItem('adminToken', token);
+      localStorage.setItem('adminUser', JSON.stringify(admin));
+
       navigate('/dashboard');
-    } else {
-      setError('Invalid email or password. Use admin@zenovia.com / admin123');
+    } catch (err) {
+      console.error('Login error', err);
+      setError('Unable to login. Please try again later.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -73,13 +97,6 @@ const Login = () => {
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
-
-            {/* Demo Credentials Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-blue-700 font-medium mb-1">Demo Credentials:</p>
-              <p className="text-sm text-blue-600">Email: admin@zenovia.com</p>
-              <p className="text-sm text-blue-600">Password: admin123</p>
-            </div>
 
             {/* Email Field */}
             <div className="space-y-2">

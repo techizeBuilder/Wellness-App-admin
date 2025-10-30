@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -18,23 +18,53 @@ import {
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [userRole, setUserRole] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Load user permissions from localStorage
+  useEffect(() => {
+    try {
+      const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+      setUserPermissions(adminUser.permissions || []);
+      setUserRole(adminUser.role || '');
+    } catch (err) {
+      console.error('Failed to parse admin user data:', err);
+    }
+  }, []);
+
+  // Define menu items with required permissions
   const menuItems = [
-    { path: '/dashboard', name: 'Dashboard', icon: LayoutDashboard },
-    { path: '/users', name: 'Users', icon: Users },
-    { path: '/experts', name: 'Experts', icon: UserCheck },
-    { path: '/admins', name: 'Admin Management', icon: Shield },
-    { path: '/bookings', name: 'Bookings', icon: Calendar },
-    { path: '/payments', name: 'Payments', icon: CreditCard },
-    { path: '/subscriptions', name: 'Subscriptions', icon: Package },
-    { path: '/reports', name: 'Reports', icon: BarChart3 },
-    { path: '/settings', name: 'Settings', icon: Settings },
+    { path: '/dashboard', name: 'Dashboard', icon: LayoutDashboard, permission: null }, // Always visible
+    { path: '/users', name: 'Users', icon: Users, permission: 'manage_users' },
+    { path: '/experts', name: 'Experts', icon: UserCheck, permission: 'manage_experts' },
+    { path: '/admins', name: 'Admin Management', icon: Shield, permission: 'manage_admins' },
+    { path: '/bookings', name: 'Bookings', icon: Calendar, permission: 'manage_bookings' },
+    { path: '/payments', name: 'Payments', icon: CreditCard, permission: 'manage_payments' },
+    { path: '/subscriptions', name: 'Subscriptions', icon: Package, permission: 'manage_subscriptions' },
+    { path: '/reports', name: 'Reports', icon: BarChart3, permission: 'view_reports' },
+    { path: '/settings', name: 'Settings', icon: Settings, permission: 'manage_settings' },
   ];
+
+  // Filter menu items based on permissions
+  const getVisibleMenuItems = () => {
+    return menuItems.filter(item => {
+      // Dashboard is always visible
+      if (!item.permission) return true;
+      
+      // Super admins can see everything
+      if (userRole === 'superadmin') return true;
+      
+      // Regular admins can only see items they have permission for
+      return userPermissions.includes(item.permission);
+    });
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('adminAuth');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
     navigate('/login');
   };
 
@@ -107,7 +137,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
         {/* Navigation */}
         <nav className="flex-1 py-4">
           <ul className="space-y-1 px-3">
-            {menuItems.map((item) => {
+            {getVisibleMenuItems().map((item) => {
               const Icon = item.icon;
               return (
                 <li key={item.path}>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 
 const ForgotPassword = () => {
@@ -21,17 +22,31 @@ const ForgotPassword = () => {
       return;
     }
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch('http://localhost:5000/api/admin/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    // Simulate successful password reset request
-    if (email === 'admin@zenovia.com') {
-      setSuccess(true);
-    } else {
-      setError('No account found with this email address');
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(true);
+        toast.success('Password reset link sent to your email');
+      } else {
+        setError(data.message || 'Failed to send reset email');
+        toast.error(data.message || 'Failed to send reset email');
+      }
+    } catch (err) {
+      console.error('Forgot password error:', err);
+      setError('Unable to send reset email. Please try again later.');
+      toast.error('Unable to send reset email. Please try again later.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleBackToLogin = () => {
@@ -63,10 +78,10 @@ const ForgotPassword = () => {
           <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-6">
             <div className="text-center space-y-4">
               <p className="text-gray-600">
-                Click the link in the email to reset your password. The link will expire in 24 hours.
+                Click the link in the email to reset your password. The link will expire in 15 minutes.
               </p>
               <p className="text-sm text-gray-500">
-                Didn't receive the email? Check your spam folder or contact support.
+                Didn't receive the email? Check your spam folder or try again.
               </p>
             </div>
 

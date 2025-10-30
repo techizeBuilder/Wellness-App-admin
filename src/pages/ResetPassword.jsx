@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 
 const ResetPassword = () => {
@@ -20,17 +21,8 @@ const ResetPassword = () => {
 
   const validatePassword = (password) => {
     const errors = [];
-    if (password.length < 8) {
-      errors.push('Password must be at least 8 characters long');
-    }
-    if (!/(?=.*[a-z])/.test(password)) {
-      errors.push('Password must contain at least one lowercase letter');
-    }
-    if (!/(?=.*[A-Z])/.test(password)) {
-      errors.push('Password must contain at least one uppercase letter');
-    }
-    if (!/(?=.*\d)/.test(password)) {
-      errors.push('Password must contain at least one number');
+    if (password.length < 6) {
+      errors.push('Password must be at least 6 characters long');
     }
     return errors;
   };
@@ -74,12 +66,34 @@ const ResetPassword = () => {
       return;
     }
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch('http://localhost:5000/api/admin/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          token, 
+          newPassword: formData.password 
+        }),
+      });
 
-    // Simulate successful password reset
-    setSuccess(true);
-    setLoading(false);
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(true);
+        toast.success('Password reset successfully!');
+      } else {
+        setErrors({ general: data.message || 'Failed to reset password' });
+        toast.error(data.message || 'Failed to reset password');
+      }
+    } catch (err) {
+      console.error('Reset password error:', err);
+      setErrors({ general: 'Unable to reset password. Please try again later.' });
+      toast.error('Unable to reset password. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBackToLogin = () => {
