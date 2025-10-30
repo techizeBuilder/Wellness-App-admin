@@ -47,19 +47,19 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-600 via-teal-700 to-teal-800 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           {/* Logo */}
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-gold-500 rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-primary-900 font-bold text-2xl">Z</span>
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+              <span className="text-teal-700 font-bold text-2xl">Z</span>
             </div>
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Zenovia Admin
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-300">
+          <p className="mt-2 text-center text-sm text-gray-200">
             Sign in to your admin account
           </p>
         </div>
@@ -75,28 +75,25 @@ const Login = () => {
             )}
 
             {/* Demo Credentials Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-700 font-medium mb-1">Demo Credentials:</p>
               <p className="text-sm text-blue-600">Email: admin@zenovia.com</p>
               <p className="text-sm text-blue-600">Password: admin123</p>
             </div>
 
             {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="form-label">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email Address
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
                 <input
                   id="email"
                   name="email"
                   type="email"
                   required
-                  className="form-input pl-10"
-                  placeholder="Enter your email"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                  placeholder="admin@zenovia.com"
                   value={formData.email}
                   onChange={handleChange}
                 />
@@ -104,21 +101,18 @@ const Login = () => {
             </div>
 
             {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="form-label">
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
                 <input
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  className="form-input pl-10 pr-12"
-                  placeholder="Enter your password"
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                  placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
                 />
@@ -136,23 +130,27 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center justify-between">
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between mt-6">
               <div className="flex items-center">
                 <input
                   id="remember"
                   name="remember"
                   type="checkbox"
-                  className="h-4 w-4 text-primary-900 focus:ring-primary-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
                   Remember me
                 </label>
               </div>
               <div className="text-sm">
-                <a href="#" className="font-medium text-primary-900 hover:text-primary-700">
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="font-medium text-teal-600 hover:text-teal-500 transition-colors"
+                >
                   Forgot password?
-                </a>
+                </button>
               </div>
             </div>
 
@@ -160,11 +158,11 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-primary-900 hover:bg-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
               {loading ? (
                 <>
-                  <div className="spinner mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Signing in...
                 </>
               ) : (
@@ -176,8 +174,8 @@ const Login = () => {
 
         {/* Footer */}
         <div className="text-center">
-          <p className="text-sm text-gray-300">
-            © 2024 Zenovia Wellness App. All rights reserved.
+          <p className="text-sm text-gray-200">
+            © 2025 Techizebuilder. All rights reserved.
           </p>
         </div>
       </div>

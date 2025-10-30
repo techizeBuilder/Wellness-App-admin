@@ -6,7 +6,7 @@ const MainLayout = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Sidebar */}
       <Sidebar 
         isCollapsed={sidebarCollapsed} 
@@ -14,13 +14,13 @@ const MainLayout = ({ children }) => {
       />
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
+      <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300 min-w-0">
         {/* Navbar */}
         <Navbar />
         
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-2 lg:p-6">
-          <div className="animate-fade-in max-w-none">
+        <main className="flex-1 overflow-auto p-2 lg:p-6 bg-gray-50">
+          <div className="animate-fade-in max-w-none h-full">
             {children}
           </div>
         </main>

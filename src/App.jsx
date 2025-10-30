@@ -2,9 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layout/MainLayout';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Experts from './pages/Experts';
+import Admins from './pages/Admins';
 import Bookings from './pages/Bookings';
 import Payments from './pages/Payments';
 import Subscriptions from './pages/Subscriptions';
@@ -38,6 +41,22 @@ function App() {
               </PublicRoute>
             } 
           />
+          <Route 
+            path="/forgot-password" 
+            element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/reset-password" 
+            element={
+              <PublicRoute>
+                <ResetPassword />
+              </PublicRoute>
+            } 
+          />
           
           {/* Protected Routes */}
           <Route 
@@ -66,6 +85,16 @@ function App() {
               <ProtectedRoute>
                 <MainLayout>
                   <Experts />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admins" 
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Admins />
                 </MainLayout>
               </ProtectedRoute>
             } 

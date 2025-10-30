@@ -103,6 +103,39 @@ body {
   .mobile-hide {
     display: none;
   }
+  
+  /* Ensure navbar is above mobile sidebar */
+  .navbar-mobile {
+    position: relative;
+    z-index: 41;
+  }
+  
+  /* Mobile-specific navbar adjustments */
+  .navbar-search {
+    max-width: calc(100vw - 120px);
+  }
+  
+  /* Mobile dropdown adjustments */
+  .mobile-dropdown {
+    position: fixed !important;
+    right: 1rem;
+    left: auto;
+    width: calc(100vw - 2rem);
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Extra small screens */
+  .navbar-search {
+    max-width: calc(100vw - 100px);
+  }
+  
+  .mobile-dropdown {
+    width: calc(100vw - 1rem);
+    max-width: none;
+    right: 0.5rem;
+  }
 }
 
 /* Form styles */

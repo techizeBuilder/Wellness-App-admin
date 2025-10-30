@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronLeft
+  ChevronLeft,
+  Shield
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
@@ -24,6 +25,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/dashboard', name: 'Dashboard', icon: LayoutDashboard },
     { path: '/users', name: 'Users', icon: Users },
     { path: '/experts', name: 'Experts', icon: UserCheck },
+    { path: '/admins', name: 'Admin Management', icon: Shield },
     { path: '/bookings', name: 'Bookings', icon: Calendar },
     { path: '/payments', name: 'Payments', icon: CreditCard },
     { path: '/subscriptions', name: 'Subscriptions', icon: Package },
@@ -45,7 +47,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-primary-900 text-white rounded-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-primary-900 text-white rounded-lg shadow-lg"
+        aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
@@ -53,8 +56,9 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
           onClick={() => setIsMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
