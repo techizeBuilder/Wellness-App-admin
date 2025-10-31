@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react';
+import config from '../utils/config';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -28,8 +29,7 @@ const Login = () => {
     setError('');
     try {
       // Call backend admin login endpoint
-      // Use explicit backend URL for development
-      const backendUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
+      const backendUrl = config.getApiUrl();
       const res = await fetch(`${backendUrl}/api/admin/auth/login`, {
         method: 'POST',
         headers: {

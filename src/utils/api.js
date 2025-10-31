@@ -1,8 +1,10 @@
+import config from './config';
+
 const getToken = () => localStorage.getItem('adminToken');
 
 // Get the base URL for API calls
 const getBaseUrl = () => {
-  return process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
+  return config.getApiUrl();
 };
 
 const headers = (isJson = true) => {

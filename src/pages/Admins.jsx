@@ -4,13 +4,14 @@ import {
   Plus,
   Search,
   Filter,
-  MoreVertical,
   Edit,
   Trash2,
   Shield,
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const Admins = () => {
@@ -21,8 +22,12 @@ const Admins = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
-  const [activeDropdown, setActiveDropdown] = useState(null);
   const [permissions, setPermissions] = useState([]);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Dummy data for admins
   useEffect(() => {
@@ -70,7 +75,7 @@ const Admins = () => {
     fetchPerms();
   }, []);
 
-  // Filter admins based on search and role
+  // Filter admins based on search and role with pagination
   useEffect(() => {
     let filtered = admins.filter(admin =>
       admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,8 +86,20 @@ const Admins = () => {
       filtered = filtered.filter(admin => admin.role === roleFilter);
     }
 
-    setFilteredAdmins(filtered);
-  }, [searchTerm, roleFilter, admins]);
+    setTotalItems(filtered.length);
+    
+    // Apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedAdmins = filtered.slice(startIndex, endIndex);
+    
+    setFilteredAdmins(paginatedAdmins);
+  }, [searchTerm, roleFilter, admins, currentPage, itemsPerPage]);
+
+  // Reset to first page when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
   const getRoleIcon = (role) => {
     return role === 'super_admin' ? <ShieldCheck size={16} /> : <Shield size={16} />;
@@ -220,8 +237,6 @@ const Admins = () => {
       } catch (err) {
         console.error('Delete admin failed', err);
         toast.error((err && err.message) || 'Failed to delete admin');
-      } finally {
-        setActiveDropdown(null);
       }
     })();
   };
@@ -239,10 +254,25 @@ const Admins = () => {
       } catch (err) {
         console.error('Toggle status failed', err);
         toast.error((err && err.message) || 'Failed to update status');
-      } finally {
-        setActiveDropdown(null);
       }
     })();
+  };
+
+  // Pagination helpers
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+  };
+
+  const goToPrevious = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const goToNext = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
   return (
@@ -374,7 +404,7 @@ const Admins = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                   Actions
                 </th>
               </tr>
@@ -402,7 +432,9 @@ const Admins = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {getPermissionsDisplay(admin.permissions)}
+                    <div className="max-w-xs">
+                      {getPermissionsDisplay(admin.permissions)}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={getStatusBadge(admin.status)}>
@@ -416,45 +448,40 @@ const Admins = () => {
                     {new Date(admin.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="relative">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* Edit Button */}
                       <button
-                        onClick={() => setActiveDropdown(activeDropdown === admin.id ? null : admin.id)}
-                        className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                        onClick={() => {
+                          setSelectedAdmin(admin);
+                          setShowEditModal(true);
+                        }}
+                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-colors"
+                        title="Edit Admin"
                       >
-                        <MoreVertical size={16} />
+                        <Edit size={16} />
                       </button>
                       
-                      {activeDropdown === admin.id && (
-                        <div className="absolute right-0 top-8 w-48 bg-white rounded-md shadow-lg z-50 border">
-                          <div className="py-1">
-                            <button
-                              onClick={() => {
-                                setSelectedAdmin(admin);
-                                setShowEditModal(true);
-                                setActiveDropdown(null);
-                              }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                              <Edit size={16} />
-                              Edit Admin
-                            </button>
-                            <button
-                              onClick={() => toggleAdminStatus(admin.id)}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                              {admin.status === 'active' ? <EyeOff size={16} /> : <Eye size={16} />}
-                              {admin.status === 'active' ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAdmin(admin.id)}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 size={16} />
-                              Delete Admin
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      {/* Toggle Status Button */}
+                      <button
+                        onClick={() => toggleAdminStatus(admin.id)}
+                        className={`p-2 rounded-full transition-colors ${
+                          admin.status === 'active' 
+                            ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50' 
+                            : 'text-green-600 hover:text-green-800 hover:bg-green-50'
+                        }`}
+                        title={admin.status === 'active' ? 'Deactivate Admin' : 'Activate Admin'}
+                      >
+                        {admin.status === 'active' ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                      
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => handleDeleteAdmin(admin.id)}
+                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-colors"
+                        title="Delete Admin"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -463,7 +490,7 @@ const Admins = () => {
           </table>
         </div>
 
-        {filteredAdmins.length === 0 && (
+        {filteredAdmins.length === 0 && totalItems === 0 && (
           <div className="text-center py-12">
             <Shield size={48} className="mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No admins found</h3>
@@ -471,6 +498,102 @@ const Admins = () => {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-b-lg">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={goToPrevious}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={goToNext}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+          
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{startItem}</span> to{' '}
+                <span className="font-medium">{endItem}</span> of{' '}
+                <span className="font-medium">{totalItems}</span> results
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                {/* Previous Button */}
+                <button
+                  onClick={goToPrevious}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                
+                {/* Page Numbers */}
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        currentPage === pageNum
+                          ? 'z-10 bg-coral-50 border-coral-500 text-coral-600'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                
+                {/* Show ellipsis if there are more pages */}
+                {totalPages > 5 && currentPage < totalPages - 2 && (
+                  <>
+                    <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                      ...
+                    </span>
+                    <button
+                      onClick={() => goToPage(totalPages)}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+                
+                {/* Next Button */}
+                <button
+                  onClick={goToNext}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Admin Modal */}
       {showAddModal && (
@@ -491,14 +614,6 @@ const Admins = () => {
           }}
           onEdit={handleEditAdmin}
           permissions={permissions}
-        />
-      )}
-
-      {/* Click outside to close dropdown */}
-      {activeDropdown && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setActiveDropdown(null)}
         />
       )}
     </div>
@@ -571,7 +686,7 @@ const AddAdminModal = ({ onClose, onAdd, permissions = [] }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Admin</h2>
         
         <form onSubmit={handleSubmit}>
@@ -732,7 +847,7 @@ const EditAdminModal = ({ admin, onClose, onEdit, permissions = [] }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Admin</h2>
         
         <form onSubmit={handleSubmit}>
