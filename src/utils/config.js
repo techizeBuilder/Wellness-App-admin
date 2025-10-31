@@ -1,7 +1,7 @@
 // API Configuration
 const config = {
   // Production API URL
-  API_BASE_URL: 'http://localhost:5000',
+  API_BASE_URL: 'https://apiwellness.shrawantravels.com',
   
   // Local development URL (if needed for testing)
   LOCAL_API_URL: 'http://localhost:5000',
