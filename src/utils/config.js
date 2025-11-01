@@ -1,10 +1,10 @@
 // API Configuration
 const config = {
   // Production API URL
-  API_BASE_URL: 'https://apiwellness.shrawantravels.com',
+  API_BASE_URL: process.env.REACT_APP_PRODUCTION_API_URL || 'https://apiwellness.shrawantravels.com',
   
-  // Local development URL (if needed for testing)
-  LOCAL_API_URL: 'http://localhost:5000',
+  // Local development URL
+  LOCAL_API_URL: process.env.REACT_APP_DEVELOPMENT_API_URL || 'http://localhost:5000',
   
   // Current environment
   isDevelopment: process.env.NODE_ENV === 'development',
@@ -12,11 +12,32 @@ const config = {
   
   // Get the appropriate API URL based on environment
   getApiUrl: () => {
-    // Always use production URL for now
-    return config.API_BASE_URL;
+    // Priority 1: Check if specific environment API URL is set
+    if (process.env.NODE_ENV === 'development') {
+      return config.LOCAL_API_URL;
+    } else if (process.env.NODE_ENV === 'production') {
+      return config.API_BASE_URL;
+    }
     
-    // Uncomment below if you want to use local URL in development
-    // return config.isDevelopment ? config.LOCAL_API_URL : config.API_BASE_URL;
+    // Priority 2: Fallback to generic API URL from env
+    if (process.env.REACT_APP_API_URL) {
+      return process.env.REACT_APP_API_URL;
+    }
+    
+    // Priority 3: Final fallback to production URL
+    return config.API_BASE_URL;
+  },
+  
+  // Utility functions
+  getCurrentEnvironment: () => process.env.NODE_ENV || 'development',
+  
+  // Get current API URL with logging for debugging
+  getApiUrlWithLog: () => {
+    const url = config.getApiUrl();
+    if (config.isDevelopment) {
+      console.log(`🔗 API URL: ${url} (Environment: ${config.getCurrentEnvironment()})`);
+    }
+    return url;
   }
 };
 

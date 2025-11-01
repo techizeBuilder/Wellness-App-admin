@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import config from '../utils/config';
 
 const ResetPassword = () => {
   const [formData, setFormData] = useState({
@@ -67,7 +68,7 @@ const ResetPassword = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin/auth/reset-password', {
+      const response = await fetch(`${config.getApiUrl()}/api/admin/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

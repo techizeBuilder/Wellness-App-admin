@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import config from '../utils/config';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -23,7 +24,7 @@ const ForgotPassword = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin/auth/forgot-password', {
+      const response = await fetch(`${config.getApiUrl()}/api/admin/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
