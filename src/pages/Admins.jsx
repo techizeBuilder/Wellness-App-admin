@@ -11,7 +11,8 @@ import {
   Eye,
   EyeOff,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Key
 } from 'lucide-react';
 
 const Admins = () => {
@@ -21,6 +22,7 @@ const Admins = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showUpdatePasswordModal, setShowUpdatePasswordModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [permissions, setPermissions] = useState([]);
   
@@ -237,6 +239,33 @@ const Admins = () => {
       } catch (err) {
         console.error('Delete admin failed', err);
         toast.error((err && err.message) || 'Failed to delete admin');
+      }
+    })();
+  };
+
+  const handleUpdatePassword = (adminData) => {
+    const { newPassword, confirmPassword } = adminData;
+    
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    (async () => {
+      try {
+        const { apiPut } = await import('../utils/api');
+        await apiPut(`/api/admin/admins/${selectedAdmin.id}/password`, { newPassword });
+        setShowUpdatePasswordModal(false);
+        setSelectedAdmin(null);
+        toast.success('Password updated successfully!');
+      } catch (err) {
+        console.error('Update password failed', err);
+        toast.error((err && err.message) || 'Failed to update password');
       }
     })();
   };
@@ -461,6 +490,18 @@ const Admins = () => {
                         <Edit size={16} />
                       </button>
                       
+                      {/* Update Password Button */}
+                      <button
+                        onClick={() => {
+                          setSelectedAdmin(admin);
+                          setShowUpdatePasswordModal(true);
+                        }}
+                        className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"
+                        title="Update Password"
+                      >
+                        <Key size={16} />
+                      </button>
+                      
                       {/* Toggle Status Button */}
                       <button
                         onClick={() => toggleAdminStatus(admin.id)}
@@ -614,6 +655,18 @@ const Admins = () => {
           }}
           onEdit={handleEditAdmin}
           permissions={permissions}
+        />
+      )}
+
+      {/* Update Password Modal */}
+      {showUpdatePasswordModal && selectedAdmin && (
+        <UpdatePasswordModal
+          admin={selectedAdmin}
+          onClose={() => {
+            setShowUpdatePasswordModal(false);
+            setSelectedAdmin(null);
+          }}
+          onUpdate={handleUpdatePassword}
         />
       )}
     </div>
@@ -925,6 +978,114 @@ const EditAdminModal = ({ admin, onClose, onEdit, permissions = [] }) => {
               className="flex-1 px-4 py-2 bg-coral-500 text-white rounded-lg hover:bg-coral-600 transition-colors"
             >
               Update Admin
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Update Password Modal Component
+const UpdatePasswordModal = ({ admin, onClose, onUpdate }) => {
+  const [formData, setFormData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    const newErrors = {};
+    if (!formData.newPassword || formData.newPassword.length < 6) {
+      newErrors.newPassword = 'Password must be at least 6 characters long';
+    }
+    if (formData.newPassword !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    onUpdate(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Update Password</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Update password for <strong>{admin.name}</strong> ({admin.email})
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Password *
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={formData.newPassword}
+                onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                placeholder="Enter new password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {errors.newPassword && <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>}
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm Password *
+            </label>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+              placeholder="Confirm new password"
+              required
+            />
+            {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Update Password
             </button>
           </div>
         </form>

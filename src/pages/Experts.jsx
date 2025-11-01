@@ -1,56 +1,155 @@
-import React, { useState } from 'react';
-import { Search, Filter, Plus, Edit3, Trash2, Eye, Star, Award, CheckCircle, XCircle } from 'lucide-react';
+﻿import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
-import { experts, formatDate, getStatusColor } from '../utils/dummyData';
+import toast from 'react-hot-toast';
+import { 
+  Users as UsersIcon, 
+  UserCheck, 
+  UserX, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  Search,
+  Star,
+  Clock,
+  DollarSign
+} from 'lucide-react';
 
 const Experts = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedExperts, setSelectedExperts] = useState([]);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [experts, setExperts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    totalExperts: 0,
+    activeExperts: 0,
+    inactiveExperts: 0,
+    averageRating: 0
+  });
+  
+  // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [expertToDelete, setExpertToDelete] = useState(null);
   const [selectedExpert, setSelectedExpert] = useState(null);
-  const [showProfileModal, setShowProfileModal] = useState(null);
-  const expertsPerPage = 20;
-
-  // Get unique categories
-  const categories = ['All', ...new Set(experts.map(expert => expert.category))];
-
-  // Filter experts
-  const filteredExperts = experts.filter(expert => {
-    const matchesSearch = expert.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         expert.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         expert.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'All' || expert.category === categoryFilter;
-    const matchesStatus = statusFilter === 'All' || expert.status === statusFilter;
-    return matchesSearch && matchesCategory && matchesStatus;
+  
+  // Form states
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    specialization: '',
+    experience: 0,
+    bio: '',
+    hourlyRate: 0,
+    verificationStatus: 'approved'
   });
+  const [editLoading, setEditLoading] = useState(false);
+  
+  // Filter and search states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [verificationFilter, setVerificationFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredExperts.length / expertsPerPage);
-  const startIndex = (currentPage - 1) * expertsPerPage;
-  const endIndex = startIndex + expertsPerPage;
-  const currentExperts = filteredExperts.slice(startIndex, endIndex);
+  // Skeleton component
+  const ExpertSkeleton = () => (
+    <div className="animate-pulse">
+      {[...Array(5)].map((_, index) => (
+        <div key={index} className="border-b border-gray-200 py-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-300 rounded w-1/4"></div>
+              <div className="h-3 bg-gray-300 rounded w-1/3"></div>
+            </div>
+            <div className="w-20 h-8 bg-gray-300 rounded"></div>
+            <div className="flex space-x-2">
+              <div className="w-8 h-8 bg-gray-300 rounded"></div>
+              <div className="w-8 h-8 bg-gray-300 rounded"></div>
+              <div className="w-8 h-8 bg-gray-300 rounded"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
-  const handleApproveExpert = (expertId) => {
-    if (window.confirm('Are you sure you want to approve this expert?')) {
-      console.log('Approving expert:', expertId);
-      alert('Expert approved successfully!');
+  // Fetch experts from API
+  const fetchExperts = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('adminToken');
+      
+      const queryParams = new URLSearchParams({
+        page: currentPage,
+        limit: 20,
+        search: searchTerm,
+        status: statusFilter,
+        verificationStatus: verificationFilter
+      });
+      
+      const response = await fetch(`http://localhost:5000/api/admin/experts?${queryParams}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch experts');
+      }
+
+      const data = await response.json();
+      const experts = data.data?.experts || data.experts || [];
+      const pagination = data.data?.pagination || {};
+      
+      setExperts(experts);
+      setTotalPages(pagination.totalPages || 1);
+      
+      if (experts && experts.length > 0) {
+        toast.success(`Loaded ${experts.length} experts`);
+      }
+    } catch (error) {
+      console.error('Error fetching experts:', error);
+      toast.error('Failed to fetch experts: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBlockExpert = (expertId) => {
-    if (window.confirm('Are you sure you want to block this expert?')) {
-      console.log('Blocking expert:', expertId);
-      alert('Expert blocked successfully!');
+  // Fetch expert statistics
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch('http://localhost:5000/api/admin/experts/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch stats');
+      }
+
+      const data = await response.json();
+      const statsData = data.data?.stats || data.stats || {};
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      toast.error('Failed to fetch stats: ' + error.message);
     }
   };
 
+  useEffect(() => {
+    fetchExperts();
+    fetchStats();
+  }, [currentPage, searchTerm, statusFilter, verificationFilter]);
+
+  // Action handlers
   const handleViewExpert = (expert) => {
     setSelectedExpert(expert);
     setShowViewModal(true);
@@ -58,708 +157,260 @@ const Experts = () => {
 
   const handleEditExpert = (expert) => {
     setSelectedExpert(expert);
+    setEditFormData({
+      firstName: expert.firstName || '',
+      lastName: expert.lastName || '',
+      email: expert.email || '',
+      phone: expert.phone || '',
+      specialization: expert.specialization || '',
+      experience: expert.experience || 0,
+      bio: expert.bio || '',
+      hourlyRate: expert.hourlyRate || 0,
+      verificationStatus: expert.verificationStatus || 'approved'
+    });
     setShowEditModal(true);
   };
 
-  const handleDeleteExpert = (expertId, expertName) => {
-    setExpertToDelete({ id: expertId, name: expertName });
+  const handleDeleteExpert = (expert) => {
+    setSelectedExpert(expert);
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteExpert = () => {
-    console.log('Deleting expert:', expertToDelete.id);
-    // Here you would make API call to delete the expert
-    setShowDeleteModal(false);
-    setExpertToDelete(null);
-    // Show success notification (you can replace alert with a toast notification)
-    alert('Expert deleted successfully!');
+  const confirmDeleteExpert = async () => {
+    if (!selectedExpert) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:5000/api/admin/experts/${selectedExpert.id || selectedExpert._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete expert');
+      }
+
+      toast.success('Expert deleted successfully');
+      setShowDeleteModal(false);
+      setSelectedExpert(null);
+      fetchExperts();
+      fetchStats();
+    } catch (error) {
+      console.error('Error deleting expert:', error);
+      toast.error('Failed to delete expert: ' + error.message);
+    }
   };
 
-  const cancelDeleteExpert = () => {
-    setShowDeleteModal(false);
-    setExpertToDelete(null);
+  const toggleExpertStatus = async (expert) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`http://localhost:5000/api/admin/experts/${expert.id || expert._id}/toggle-status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update expert status');
+      }
+
+      const result = await response.json();
+      toast.success(result.message || 'Expert status updated successfully');
+      fetchExperts();
+      fetchStats();
+    } catch (error) {
+      console.error('Error updating expert status:', error);
+      toast.error('Failed to update expert status: ' + error.message);
+    }
   };
 
-  const handleAddExpert = (expertData) => {
-    console.log('Adding new expert:', expertData);
-    alert('Expert added successfully!');
-    setShowAddModal(false);
+  // Handle form input changes
+  const handleEditFormChange = (e) => {
+    const { name, value, type } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseFloat(value) || 0 : value
+    }));
   };
 
-  const handleUpdateExpert = (updatedData) => {
-    console.log('Updating expert:', selectedExpert.id, updatedData);
-    alert('Expert updated successfully!');
-    setShowEditModal(false);
-    setSelectedExpert(null);
+  // Submit edit form
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedExpert) return;
+
+    try {
+      setEditLoading(true);
+      const token = localStorage.getItem('adminToken');
+      
+      const response = await fetch(`http://localhost:5000/api/admin/experts/${selectedExpert.id || selectedExpert._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editFormData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update expert');
+      }
+
+      toast.success('Expert updated successfully');
+      setShowEditModal(false);
+      setSelectedExpert(null);
+      resetEditForm();
+      fetchExperts();
+      fetchStats();
+    } catch (error) {
+      console.error('Error updating expert:', error);
+      toast.error('Failed to update expert: ' + error.message);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
-  // Expert Profile Modal
-  const ExpertProfileModal = ({ expert, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">Expert Profile</h3>
-          <button 
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
-        </div>
-        
-        <div className="space-y-6">
-          {/* Header Section */}
-          <div className="flex items-center space-x-4">
-            <div className="w-20 h-20 bg-primary-900 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">
-                {expert.name.charAt(0)}
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xl font-semibold text-gray-900">{expert.name}</h4>
-              <p className="text-gray-600">{expert.category} Expert</p>
-              <div className="flex items-center space-x-2 mt-1">
-                <div className="flex items-center">
-                  <Star className="text-yellow-400 fill-current" size={16} />
-                  <span className="ml-1 font-medium">{expert.rating}</span>
-                </div>
-                <span className="text-gray-400">•</span>
-                <span className="text-sm text-gray-600">{expert.totalSessions} sessions</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Details Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h5 className="font-semibold text-gray-900 mb-3">Contact Information</h5>
-              <div className="space-y-2">
-                <p><span className="text-gray-600">Email:</span> {expert.email}</p>
-                <p><span className="text-gray-600">Phone:</span> {expert.phone}</p>
-                <p><span className="text-gray-600">Join Date:</span> {formatDate(expert.joinDate)}</p>
-              </div>
-            </div>
-            
-            <div>
-              <h5 className="font-semibold text-gray-900 mb-3">Professional Info</h5>
-              <div className="space-y-2">
-                <p><span className="text-gray-600">Experience:</span> {expert.experience}</p>
-                <p><span className="text-gray-600">Category:</span> {expert.category}</p>
-                <p><span className="text-gray-600">Specialization:</span> {expert.specialization}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-primary-50 rounded-lg">
-              <div className="text-2xl font-bold text-primary-900">{expert.rating}</div>
-              <div className="text-sm text-gray-600">Rating</div>
-            </div>
-            <div className="text-center p-4 bg-gold-50 rounded-lg">
-              <div className="text-2xl font-bold text-gold-600">{expert.totalSessions}</div>
-              <div className="text-sm text-gray-600">Sessions</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{expert.status}</div>
-              <div className="text-sm text-gray-600">Status</div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex space-x-3 pt-4">
-            {expert.status === 'Active' ? (
-              <button 
-                onClick={() => handleBlockExpert(expert.id)}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Block Expert
-              </button>
-            ) : (
-              <button 
-                onClick={() => handleApproveExpert(expert.id)}
-                className="btn-primary"
-              >
-                Approve Expert
-              </button>
-            )}
-            <button className="btn-secondary">
-              Edit Profile
-            </button>
-            <button onClick={onClose} className="btn-secondary">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Add Expert Modal Component
-  const AddExpertModal = () => {
-    const [addForm, setAddForm] = useState({
-      name: '',
+  const resetEditForm = () => {
+    setEditFormData({
+      firstName: '',
+      lastName: '',
       email: '',
       phone: '',
-      category: 'Yoga',
-      experience: '',
       specialization: '',
+      experience: 0,
       bio: '',
-      qualification: '',
-      rating: '',
-      status: 'Active'
+      hourlyRate: 0,
+      verificationStatus: 'approved'
     });
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      handleAddExpert(addForm);
-      setAddForm({
-        name: '',
-        email: '',
-        phone: '',
-        category: 'Yoga',
-        experience: '',
-        specialization: '',
-        bio: '',
-        qualification: '',
-        rating: '',
-        status: 'Active'
-      });
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">Add New Expert</h3>
-            <button 
-              onClick={() => setShowAddModal(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="form-label">Full Name *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={addForm.name}
-                  onChange={(e) => setAddForm({...addForm, name: e.target.value})}
-                  placeholder="Enter expert's full name" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Email Address *</label>
-                <input 
-                  type="email" 
-                  className="form-input" 
-                  value={addForm.email}
-                  onChange={(e) => setAddForm({...addForm, email: e.target.value})}
-                  placeholder="Enter email address" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Phone Number *</label>
-                <input 
-                  type="tel" 
-                  className="form-input" 
-                  value={addForm.phone}
-                  onChange={(e) => setAddForm({...addForm, phone: e.target.value})}
-                  placeholder="Enter phone number" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Category *</label>
-                <select 
-                  className="form-input"
-                  value={addForm.category}
-                  onChange={(e) => setAddForm({...addForm, category: e.target.value})}
-                  required
-                >
-                  <option value="Yoga">Yoga</option>
-                  <option value="Diet & Nutrition">Diet & Nutrition</option>
-                  <option value="Ayurveda">Ayurveda</option>
-                  <option value="Meditation">Meditation</option>
-                  <option value="Fitness">Fitness</option>
-                  <option value="Mental Health">Mental Health</option>
-                </select>
-              </div>
-              <div>
-                <label className="form-label">Experience *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={addForm.experience}
-                  onChange={(e) => setAddForm({...addForm, experience: e.target.value})}
-                  placeholder="e.g. 5 years" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Initial Rating</label>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  value={addForm.rating}
-                  onChange={(e) => setAddForm({...addForm, rating: e.target.value})}
-                  placeholder="4.5" 
-                  min="1" 
-                  max="5" 
-                  step="0.1"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="form-label">Specialization *</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                value={addForm.specialization}
-                onChange={(e) => setAddForm({...addForm, specialization: e.target.value})}
-                placeholder="e.g. Hatha Yoga, Pranayama" 
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="form-label">Qualification</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                value={addForm.qualification}
-                onChange={(e) => setAddForm({...addForm, qualification: e.target.value})}
-                placeholder="e.g. Certified Yoga Instructor, B.Sc Nutrition" 
-              />
-            </div>
-            
-            <div>
-              <label className="form-label">Bio/Description</label>
-              <textarea 
-                className="form-input min-h-[100px]" 
-                value={addForm.bio}
-                onChange={(e) => setAddForm({...addForm, bio: e.target.value})}
-                placeholder="Brief description about the expert..."
-                rows="4"
-              />
-            </div>
-            
-            <div>
-              <label className="form-label">Status</label>
-              <select 
-                className="form-input"
-                value={addForm.status}
-                onChange={(e) => setAddForm({...addForm, status: e.target.value})}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Pending">Pending Approval</option>
-              </select>
-            </div>
-            
-            <div className="flex space-x-3 pt-4">
-              <button type="submit" className="btn-primary flex-1">
-                Add Expert
-              </button>
-              <button 
-                type="button" 
-                onClick={() => setShowAddModal(false)}
-                className="btn-secondary flex-1"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
   };
 
-  // View Expert Modal Component
-  const ViewExpertModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">Expert Details</h3>
-          <button 
-            onClick={() => {setShowViewModal(false); setSelectedExpert(null);}}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
-        </div>
-        
-        {selectedExpert && (
-          <div className="space-y-6">
-            {/* Header Section */}
-            <div className="flex items-center space-x-6 p-4 bg-gray-50 rounded-lg">
-              <div className="w-20 h-20 bg-primary-900 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">
-                  {selectedExpert.name.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1">
-                <h4 className="text-2xl font-bold text-gray-900">{selectedExpert.name}</h4>
-                <p className="text-gray-600">{selectedExpert.id}</p>
-                <div className="flex items-center space-x-2 mt-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                    {selectedExpert.category}
-                  </span>
-                  <span className={getStatusColor(selectedExpert.status)}>
-                    {selectedExpert.status}
-                  </span>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="flex items-center space-x-1">
-                  <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="text-lg font-bold text-gray-900">{selectedExpert.rating}</span>
-                </div>
-                <p className="text-sm text-gray-600">{selectedExpert.totalSessions} sessions</p>
-              </div>
-            </div>
-            
-            {/* Contact Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h5 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h5>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Email</label>
-                    <p className="text-gray-900">{selectedExpert.email}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Phone</label>
-                    <p className="text-gray-900">{selectedExpert.phone}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Join Date</label>
-                    <p className="text-gray-900">{formatDate(selectedExpert.joinDate)}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h5 className="text-lg font-semibold text-gray-900 mb-3">Professional Details</h5>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Experience</label>
-                    <p className="text-gray-900">{selectedExpert.experience}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Specialization</label>
-                    <p className="text-gray-900">{selectedExpert.specialization}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Total Sessions</label>
-                    <p className="text-gray-900">{selectedExpert.totalSessions}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Actions */}
-            <div className="flex space-x-3 pt-4">
-              <button 
-                onClick={() => {setShowViewModal(false); handleEditExpert(selectedExpert);}}
-                className="btn-primary flex-1"
-              >
-                Edit Expert
-              </button>
-              <button 
-                onClick={() => {setShowViewModal(false); setSelectedExpert(null);}}
-                className="btn-secondary flex-1"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Edit Expert Modal Component
-  const EditExpertModal = () => {
-    const [editForm, setEditForm] = useState({
-      name: selectedExpert?.name || '',
-      email: selectedExpert?.email || '',
-      phone: selectedExpert?.phone || '',
-      category: selectedExpert?.category || 'Yoga',
-      experience: selectedExpert?.experience || '',
-      specialization: selectedExpert?.specialization || '',
-      rating: selectedExpert?.rating || '',
-      status: selectedExpert?.status || 'Active'
-    });
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      handleUpdateExpert(editForm);
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">Edit Expert</h3>
-            <button 
-              onClick={() => {setShowEditModal(false); setSelectedExpert(null);}}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="form-label">Full Name *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                  placeholder="Enter expert's full name" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Email Address *</label>
-                <input 
-                  type="email" 
-                  className="form-input" 
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                  placeholder="Enter email address" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Phone Number *</label>
-                <input 
-                  type="tel" 
-                  className="form-input" 
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                  placeholder="Enter phone number" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Category *</label>
-                <select 
-                  className="form-input"
-                  value={editForm.category}
-                  onChange={(e) => setEditForm({...editForm, category: e.target.value})}
-                  required
-                >
-                  <option value="Yoga">Yoga</option>
-                  <option value="Diet & Nutrition">Diet & Nutrition</option>
-                  <option value="Ayurveda">Ayurveda</option>
-                  <option value="Meditation">Meditation</option>
-                  <option value="Fitness">Fitness</option>
-                  <option value="Mental Health">Mental Health</option>
-                </select>
-              </div>
-              <div>
-                <label className="form-label">Experience *</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={editForm.experience}
-                  onChange={(e) => setEditForm({...editForm, experience: e.target.value})}
-                  placeholder="e.g. 5 years" 
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Rating</label>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  value={editForm.rating}
-                  onChange={(e) => setEditForm({...editForm, rating: e.target.value})}
-                  placeholder="4.5" 
-                  min="1" 
-                  max="5" 
-                  step="0.1"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="form-label">Specialization *</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                value={editForm.specialization}
-                onChange={(e) => setEditForm({...editForm, specialization: e.target.value})}
-                placeholder="e.g. Hatha Yoga, Pranayama" 
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="form-label">Status</label>
-              <select 
-                className="form-input"
-                value={editForm.status}
-                onChange={(e) => setEditForm({...editForm, status: e.target.value})}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Pending">Pending Approval</option>
-              </select>
-            </div>
-            
-            <div className="flex space-x-3 pt-4">
-              <button type="submit" className="btn-primary flex-1">
-                Update Expert
-              </button>
-              <button 
-                type="button" 
-                onClick={() => {setShowEditModal(false); setSelectedExpert(null);}}
-                className="btn-secondary flex-1"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
+  const getVerificationStatusColor = (status) => {
+    switch (status) {
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'under_review': return 'bg-blue-100 text-blue-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
-
-  // Delete Confirmation Modal Component
-  const DeleteConfirmationModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-        <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
-          <Trash2 className="w-6 h-6 text-red-600" />
-        </div>
-        
-        <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Expert</h3>
-          <p className="text-gray-600 mb-4">
-            Are you sure you want to delete <strong>{expertToDelete?.name}</strong>? 
-            This action cannot be undone and will permanently remove all associated data.
-          </p>
-          
-          <div className="flex space-x-3">
-            <button 
-              onClick={cancelDeleteExpert}
-              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={confirmDeleteExpert}
-              className="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
-            >
-              Delete Expert
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Experts Management</h1>
-          <p className="text-gray-600 mt-1">Manage wellness experts and their profiles</p>
-        </div>
-        <div className="mt-4 sm:mt-0">
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary flex items-center space-x-2"
-          >
-            <Plus size={16} />
-            <span>Add Expert</span>
-          </button>
-        </div>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Experts Management</h1>
+        <p className="text-gray-600">Manage wellness experts and their profiles</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="text-center">
-          <div className="p-4">
-            <div className="text-2xl font-bold text-primary-900">{experts.length}</div>
-            <div className="text-sm text-gray-600">Total Experts</div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <UsersIcon size={24} className="text-blue-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Total Experts</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalExperts || 0}</p>
+            </div>
           </div>
         </Card>
-        <Card className="text-center">
-          <div className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {experts.filter(e => e.status === 'Active').length}
+
+        <Card className="p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <UserCheck size={24} className="text-green-600" />
             </div>
-            <div className="text-sm text-gray-600">Active Experts</div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Active</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.activeExperts || 0}</p>
+            </div>
           </div>
         </Card>
-        <Card className="text-center">
-          <div className="p-4">
-            <div className="text-2xl font-bold text-gold-600">
-              {(experts.reduce((sum, e) => sum + e.rating, 0) / experts.length).toFixed(1)}
+
+        <Card className="p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <UserX size={24} className="text-red-600" />
             </div>
-            <div className="text-sm text-gray-600">Avg Rating</div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Inactive</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.inactiveExperts || 0}</p>
+            </div>
           </div>
         </Card>
-        <Card className="text-center">
-          <div className="p-4">
-            <div className="text-2xl font-bold text-coral-400">
-              {experts.reduce((sum, e) => sum + e.totalSessions, 0)}
+
+        <Card className="p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Star size={24} className="text-purple-600" />
             </div>
-            <div className="text-sm text-gray-600">Total Sessions</div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Avg Rating</p>
+              <p className="text-2xl font-bold text-gray-900">{(stats.averageRating || 0).toFixed(1)}</p>
+            </div>
           </div>
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <div className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
-            {/* Search */}
-            <div className="relative flex-1">
+      {/* Search and Filters */}
+      <Card className="p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
                 placeholder="Search experts..."
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            
-            {/* Category Filter */}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-            
-            {/* Status Filter */}
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Verification</label>
+            <select
+              value={verificationFilter}
+              onChange={(e) => {
+                setVerificationFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Verification</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="under_review">Under Review</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
         </div>
@@ -767,169 +418,396 @@ const Experts = () => {
 
       {/* Experts Table */}
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full table-hover">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Expert</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Category</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Experience</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Rating</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Sessions</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Status</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentExperts.map((expert) => (
-                <tr key={expert.id} className="border-b border-gray-100">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-primary-900 rounded-full flex items-center justify-center">
-                        <span className="text-white font-medium text-sm">
-                          {expert.name.charAt(0)}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{expert.name}</div>
-                        <div className="text-sm text-gray-500">{expert.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                      {expert.category}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-700">
-                    {expert.experience}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center">
-                      <Star className="text-yellow-400 fill-current mr-1" size={16} />
-                      <span className="font-medium">{expert.rating}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center">
-                      <Award className="text-gold-500 mr-1" size={16} />
-                      <span className="font-medium">{expert.totalSessions}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={getStatusColor(expert.status)}>
-                      {expert.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => handleViewExpert(expert)}
-                        className="p-2 text-primary-900 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="View Expert Details"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleEditExpert(expert)}
-                        className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
-                        title="Edit Expert"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleDeleteExpert(expert.id, expert.name)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Expert"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      
-                      {expert.status === 'Active' ? (
-                        <button 
-                          onClick={() => handleBlockExpert(expert.id)}
-                          className="p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg transition-colors"
-                          title="Block Expert"
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={() => handleApproveExpert(expert.id)}
-                          className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Approve Expert"
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredExperts.length)} of {filteredExperts.length} experts
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
-              >
-                Previous
-              </button>
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`px-3 py-1 border rounded text-sm ${
-                    currentPage === i + 1
-                      ? 'bg-primary-900 text-white'
-                      : 'border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
-              >
-                Next
-              </button>
-            </div>
+        {loading ? (
+          <div className="p-6">
+            <ExpertSkeleton />
+          </div>
+        ) : (
+          <div className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Experts List</h2>
+            {experts.length === 0 ? (
+              <div className="text-center py-12">
+                <UsersIcon size={48} className="mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No experts found</h3>
+                <p className="text-gray-500">No experts match your current filters</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Expert
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Specialization
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Experience
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Rate
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Verification
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {experts.map((expert) => (
+                      <tr key={expert.id || expert._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                <span className="text-sm font-medium text-white">
+                                  {expert.name ? expert.name.split(' ').map(n => n[0]).join('') : 'E'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{expert.name || 'N/A'}</div>
+                              <div className="text-sm text-gray-500">{expert.email || 'N/A'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{expert.specialization || 'N/A'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-gray-900">
+                            <Clock size={16} className="mr-1 text-gray-400" />
+                            {expert.experience || 0} years
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-gray-900">
+                            <DollarSign size={16} className="mr-1 text-gray-400" />
+                            ${expert.hourlyRate || 0}/hr
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            expert.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {expert.status ? expert.status.charAt(0).toUpperCase() + expert.status.slice(1) : 'Active'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getVerificationStatusColor(expert.verificationStatus)}`}>
+                            {expert.verificationStatus ? expert.verificationStatus.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Approved'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleViewExpert(expert)}
+                              className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100"
+                              title="View Expert"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleEditExpert(expert)}
+                              className="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-100"
+                              title="Edit Expert"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => toggleExpertStatus(expert)}
+                              className={`p-1 rounded-full ${
+                                expert.status === 'active' 
+                                  ? 'text-orange-600 hover:text-orange-900 hover:bg-orange-100' 
+                                  : 'text-green-600 hover:text-green-900 hover:bg-green-100'
+                              }`}
+                              title={expert.status === 'active' ? 'Deactivate Expert' : 'Activate Expert'}
+                            >
+                              {expert.status === 'active' ? <UserX size={16} /> : <UserCheck size={16} />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExpert(expert)}
+                              className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100"
+                              title="Delete Expert"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </Card>
 
-      {/* Expert Profile Modal */}
-      {showProfileModal && (
-        <ExpertProfileModal 
-          expert={showProfileModal} 
-          onClose={() => setShowProfileModal(null)} 
-        />
-      )}
-      
-      {/* Add Expert Modal */}
-      {showAddModal && <AddExpertModal />}
-      
       {/* View Expert Modal */}
-      {showViewModal && <ViewExpertModal />}
-      
+      {showViewModal && selectedExpert && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Expert Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="font-medium text-gray-700">Name:</label>
+                <p className="text-gray-900">{selectedExpert.name}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Email:</label>
+                <p className="text-gray-900">{selectedExpert.email}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Phone:</label>
+                <p className="text-gray-900">{selectedExpert.phone}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Specialization:</label>
+                <p className="text-gray-900">{selectedExpert.specialization}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Experience:</label>
+                <p className="text-gray-900">{selectedExpert.experience} years</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Hourly Rate:</label>
+                <p className="text-gray-900">${selectedExpert.hourlyRate}/hr</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Status:</label>
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  selectedExpert.status === 'active' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {selectedExpert.status}
+                </span>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Verification:</label>
+                <span className={`px-2 py-1 text-xs rounded-full ${getVerificationStatusColor(selectedExpert.verificationStatus)}`}>
+                  {selectedExpert.verificationStatus?.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="md:col-span-2">
+                <label className="font-medium text-gray-700">Bio:</label>
+                <p className="text-gray-900">{selectedExpert.bio || 'No bio provided'}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Join Date:</label>
+                <p className="text-gray-900">{new Date(selectedExpert.createdAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Expert Modal */}
-      {showEditModal && <EditExpertModal />}
-      
+      {showEditModal && selectedExpert && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Edit Expert</h3>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={editFormData.firstName}
+                    onChange={handleEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={editFormData.lastName}
+                    onChange={handleEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editFormData.email}
+                    onChange={handleEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={editFormData.phone}
+                    onChange={handleEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Specialization *
+                  </label>
+                  <input
+                    type="text"
+                    name="specialization"
+                    value={editFormData.specialization}
+                    onChange={handleEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Experience (years)
+                  </label>
+                  <input
+                    type="number"
+                    name="experience"
+                    value={editFormData.experience}
+                    onChange={handleEditFormChange}
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hourly Rate ($)
+                  </label>
+                  <input
+                    type="number"
+                    name="hourlyRate"
+                    value={editFormData.hourlyRate}
+                    onChange={handleEditFormChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Verification Status
+                  </label>
+                  <select
+                    name="verificationStatus"
+                    value={editFormData.verificationStatus}
+                    onChange={handleEditFormChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bio
+                </label>
+                <textarea
+                  name="bio"
+                  value={editFormData.bio}
+                  onChange={handleEditFormChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                ></textarea>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedExpert(null);
+                    resetEditForm();
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  disabled={editLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  disabled={editLoading}
+                >
+                  {editLoading ? 'Updating...' : 'Update Expert'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && <DeleteConfirmationModal />}
+      {showDeleteModal && selectedExpert && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4 text-red-600">Delete Expert</h3>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete expert <strong>{selectedExpert.name}</strong>? 
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteExpert}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
