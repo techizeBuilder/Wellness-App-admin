@@ -48,6 +48,8 @@ const Experts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [verificationFilter, setVerificationFilter] = useState('all');
+  const [specializationFilter, setSpecializationFilter] = useState('all');
+  const [specializations, setSpecializations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -87,6 +89,10 @@ const Experts = () => {
         status: statusFilter,
         verificationStatus: verificationFilter
       });
+      
+      if (specializationFilter && specializationFilter !== 'all') {
+        queryParams.append('specialty', specializationFilter);
+      }
       
       const response = await fetch(`http://localhost:5000/api/admin/experts?${queryParams}`, {
         headers: {
@@ -144,10 +150,48 @@ const Experts = () => {
     }
   };
 
+  // Fetch unique specializations
+  const fetchSpecializations = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      // Fetch all experts without pagination to get unique specializations
+      const response = await fetch('http://localhost:5000/api/admin/experts?limit=1000', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch specializations');
+      }
+
+      const data = await response.json();
+      const experts = data.data?.experts || data.experts || [];
+      
+      // Extract unique specializations
+      const uniqueSpecializations = [...new Set(
+        experts
+          .map(expert => expert.specialization)
+          .filter(spec => spec && spec.trim() !== '')
+      )].sort();
+      
+      setSpecializations(uniqueSpecializations);
+    } catch (error) {
+      console.error('Error fetching specializations:', error);
+      // Don't show error toast for this, just log it
+    }
+  };
+
   useEffect(() => {
     fetchExperts();
     fetchStats();
-  }, [currentPage, searchTerm, statusFilter, verificationFilter]);
+  }, [currentPage, searchTerm, statusFilter, verificationFilter, specializationFilter]);
+
+  useEffect(() => {
+    fetchSpecializations();
+  }, []);
 
   // Action handlers
   const handleViewExpert = (expert) => {
@@ -362,7 +406,7 @@ const Experts = () => {
 
       {/* Search and Filters */}
       <Card className="p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
             <div className="relative">
@@ -411,6 +455,25 @@ const Experts = () => {
               <option value="pending">Pending</option>
               <option value="under_review">Under Review</option>
               <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
+            <select
+              value={specializationFilter}
+              onChange={(e) => {
+                setSpecializationFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Specializations</option>
+              {specializations.map((spec) => (
+                <option key={spec} value={spec}>
+                  {spec}
+                </option>
+              ))}
             </select>
           </div>
         </div>
