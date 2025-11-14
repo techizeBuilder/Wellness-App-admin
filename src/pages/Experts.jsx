@@ -194,8 +194,29 @@ const Experts = () => {
   }, []);
 
   // Action handlers
-  const handleViewExpert = (expert) => {
-    setSelectedExpert(expert);
+  const handleViewExpert = async (expert) => {
+    try {
+      // Fetch full expert details including bank account
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:5000/api/admin/experts/${expert.id || expert._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedExpert(data.data?.expert || expert);
+      } else {
+        // If fetch fails, use the expert data we have
+        setSelectedExpert(expert);
+      }
+    } catch (error) {
+      console.error('Error fetching expert details:', error);
+      // If error, use the expert data we have
+      setSelectedExpert(expert);
+    }
     setShowViewModal(true);
   };
 
@@ -670,6 +691,65 @@ const Experts = () => {
                 <p className="text-gray-900">{new Date(selectedExpert.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
+            
+            {/* Bank Account Details Section */}
+            {selectedExpert.bankAccount && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-md font-semibold text-gray-800 mb-4 flex items-center">
+                  <DollarSign size={18} className="mr-2" />
+                  Bank Account Details
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg">
+                  <div>
+                    <label className="font-medium text-gray-700">Account Holder Name:</label>
+                    <p className="text-gray-900">{selectedExpert.bankAccount.accountHolderName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-gray-700">Account Number:</label>
+                    <p className="text-gray-900 font-mono">{selectedExpert.bankAccount.accountNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-gray-700">Bank Name:</label>
+                    <p className="text-gray-900">{selectedExpert.bankAccount.bankName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-gray-700">IFSC Code:</label>
+                    <p className="text-gray-900 font-mono">{selectedExpert.bankAccount.ifscCode || 'N/A'}</p>
+                  </div>
+                  {selectedExpert.bankAccount.branchName && (
+                    <div>
+                      <label className="font-medium text-gray-700">Branch Name:</label>
+                      <p className="text-gray-900">{selectedExpert.bankAccount.branchName}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="font-medium text-gray-700">Account Type:</label>
+                    <p className="text-gray-900 capitalize">{selectedExpert.bankAccount.accountType || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-gray-700">Status:</label>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      selectedExpert.bankAccount.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {selectedExpert.bankAccount.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {!selectedExpert.bankAccount && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-md font-semibold text-gray-800 mb-2 flex items-center">
+                  <DollarSign size={18} className="mr-2" />
+                  Bank Account Details
+                </h4>
+                <p className="text-gray-500 italic">No bank account details available</p>
+              </div>
+            )}
+            
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowViewModal(false)}
