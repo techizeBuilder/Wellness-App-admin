@@ -46,3 +46,11 @@ export const apiDelete = async (path) => {
   if (!res.ok) throw body;
   return body;
 };
+
+export const apiPatch = async (path, data) => {
+  const url = `${getBaseUrl()}${path}`;
+  const res = await fetch(url, { method: 'PATCH', headers: headers(), body: JSON.stringify(data) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw body;
+  return body;
+};
