@@ -58,6 +58,24 @@ const Experts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Helper function to get profile image URL
+  const getProfileImageUrl = (expert) => {
+    if (!expert) return null;
+    
+    // Check if profileImage exists
+    if (expert.profileImage) {
+      // If it's already a full URL, return it
+      if (expert.profileImage.startsWith('http://') || expert.profileImage.startsWith('https://')) {
+        return expert.profileImage;
+      }
+      // Otherwise, construct the full URL
+      const apiUrl = config.getApiUrl();
+      return `${apiUrl}/uploads/profiles/${expert.profileImage}`;
+    }
+    
+    return null;
+  };
+
   // Skeleton component
   const ExpertSkeleton = () => (
     <div className="animate-pulse">
@@ -582,12 +600,23 @@ const Experts = () => {
                       <tr key={expert.id || expert._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
+                            <div className="flex-shrink-0 h-10 w-10 relative">
                               <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
                                 <span className="text-sm font-medium text-white">
                                   {expert.name ? expert.name.split(' ').map(n => n[0]).join('') : 'E'}
                                 </span>
                               </div>
+                              {getProfileImageUrl(expert) && (
+                                <img
+                                  src={getProfileImageUrl(expert)}
+                                  alt={expert.name || 'Expert'}
+                                  className="h-10 w-10 rounded-full object-cover absolute top-0 left-0"
+                                  onError={(e) => {
+                                    // Hide image and show initials if image fails to load
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              )}
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900">{expert.name || 'N/A'}</div>
@@ -683,6 +712,26 @@ const Experts = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">Expert Details</h3>
+            {/* Profile Image */}
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <div className="h-24 w-24 rounded-full bg-blue-500 flex items-center justify-center">
+                  <span className="text-2xl font-medium text-white">
+                    {selectedExpert.name ? selectedExpert.name.split(' ').map(n => n[0]).join('') : 'E'}
+                  </span>
+                </div>
+                {getProfileImageUrl(selectedExpert) && (
+                  <img
+                    src={getProfileImageUrl(selectedExpert)}
+                    alt={selectedExpert.name || 'Expert'}
+                    className="h-24 w-24 rounded-full object-cover absolute top-0 left-0"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="font-medium text-gray-700">Name:</label>

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
+import config from '../utils/config';
 import { Users as UsersIcon, UserCheck, UserX, Plus, Eye, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 
 const Users = () => {
@@ -25,6 +26,29 @@ const Users = () => {
     phone: ''
   });
   const [editLoading, setEditLoading] = useState(false);
+
+  // Helper function to get profile image URL
+  const getProfileImageUrl = (user) => {
+    if (!user) return null;
+    
+    // Check if profileImage exists
+    if (user.profileImage) {
+      // If it's already a full URL, return it
+      if (user.profileImage.startsWith('http://') || user.profileImage.startsWith('https://')) {
+        return user.profileImage;
+      }
+      // Otherwise, construct the full URL
+      const apiUrl = config.getApiUrl();
+      return `${apiUrl}/uploads/profiles/${user.profileImage}`;
+    }
+    
+    // Fallback to googleAvatar if available
+    if (user.googleAvatar) {
+      return user.googleAvatar;
+    }
+    
+    return null;
+  };
 
   // Fetch users from API
   const fetchUsers = async () => {
@@ -335,12 +359,23 @@ const Users = () => {
                       <tr key={user.id || user._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
+                            <div className="flex-shrink-0 h-10 w-10 relative">
                               <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
                                 <span className="text-sm font-medium text-white">
                                   {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
                                 </span>
                               </div>
+                              {getProfileImageUrl(user) && (
+                                <img
+                                  src={getProfileImageUrl(user)}
+                                  alt={user.name || 'User'}
+                                  className="h-10 w-10 rounded-full object-cover absolute top-0 left-0"
+                                  onError={(e) => {
+                                    // Hide image and show initials if image fails to load
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              )}
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900">{user.name || 'N/A'}</div>
@@ -414,6 +449,26 @@ const Users = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">User Details</h3>
+            {/* Profile Image */}
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <div className="h-24 w-24 rounded-full bg-blue-500 flex items-center justify-center">
+                  <span className="text-2xl font-medium text-white">
+                    {selectedUser.name ? selectedUser.name.split(' ').map(n => n[0]).join('') : 'U'}
+                  </span>
+                </div>
+                {getProfileImageUrl(selectedUser) && (
+                  <img
+                    src={getProfileImageUrl(selectedUser)}
+                    alt={selectedUser.name || 'User'}
+                    className="h-24 w-24 rounded-full object-cover absolute top-0 left-0"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
+            </div>
             <div className="space-y-3">
               <div>
                 <label className="font-medium text-gray-700">Name:</label>
