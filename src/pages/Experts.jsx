@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
+import config from '../utils/config';
 import { 
   Users as UsersIcon, 
   UserCheck, 
@@ -11,7 +12,8 @@ import {
   Search,
   Star,
   Clock,
-  DollarSign
+  DollarSign,
+  X
 } from 'lucide-react';
 
 const Experts = () => {
@@ -28,7 +30,10 @@ const Experts = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPlansModal, setShowPlansModal] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState(null);
+  const [expertPlans, setExpertPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
   
   // Form states
   const [editFormData, setEditFormData] = useState({
@@ -367,6 +372,32 @@ const Experts = () => {
     }
   };
 
+  // Fetch plans for an expert
+  const handleShowPlans = async (expert) => {
+    try {
+      setLoadingPlans(true);
+      setSelectedExpert(expert);
+      setShowPlansModal(true);
+      
+      const expertId = expert.id || expert._id;
+      const apiUrl = config.getApiUrl();
+      const response = await fetch(`${apiUrl}/api/plans/expert/${expertId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch plans');
+      }
+      
+      const data = await response.json();
+      setExpertPlans(data.data?.plans || []);
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+      toast.error('Failed to fetch plans: ' + error.message);
+      setExpertPlans([]);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -539,6 +570,9 @@ const Experts = () => {
                         Verification
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Plans
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -589,6 +623,14 @@ const Experts = () => {
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getVerificationStatusColor(expert.verificationStatus)}`}>
                             {expert.verificationStatus ? expert.verificationStatus.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Approved'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleShowPlans(expert)}
+                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Show plans
+                          </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center space-x-2">
@@ -946,6 +988,140 @@ const Experts = () => {
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Plans Modal */}
+      {showPlansModal && selectedExpert && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Plans for {selectedExpert.name || selectedExpert.firstName + ' ' + selectedExpert.lastName}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowPlansModal(false);
+                  setSelectedExpert(null);
+                  setExpertPlans([]);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            {loadingPlans ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Loading plans...</p>
+              </div>
+            ) : expertPlans.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No plans found for this expert</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {expertPlans.map((plan) => (
+                  <div key={plan._id || plan.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900">{plan.name}</h4>
+                        <span className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
+                          plan.type === 'monthly' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {plan.type === 'monthly' ? 'Monthly Subscription' : 'Single Class'}
+                        </span>
+                        {plan.isActive ? (
+                          <span className="inline-block px-2 py-1 text-xs rounded-full ml-2 bg-green-100 text-green-800">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-1 text-xs rounded-full ml-2 bg-gray-100 text-gray-800">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-gray-900">
+                          ${plan.type === 'monthly' ? (plan.monthlyPrice || plan.price) : plan.price}
+                        </p>
+                        {plan.type === 'monthly' && (
+                          <p className="text-sm text-gray-500">per month</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {plan.description && (
+                      <p className="text-gray-600 mb-3">{plan.description}</p>
+                    )}
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                      {plan.duration && (
+                        <div>
+                          <span className="text-gray-500">Duration:</span>
+                          <span className="ml-2 font-medium">{plan.duration} minutes</span>
+                        </div>
+                      )}
+                      {plan.type === 'monthly' && plan.classesPerMonth && (
+                        <div>
+                          <span className="text-gray-500">Classes per month:</span>
+                          <span className="ml-2 font-medium">{plan.classesPerMonth}</span>
+                        </div>
+                      )}
+                      {plan.sessionClassType && (
+                        <div>
+                          <span className="text-gray-500">Class Type:</span>
+                          <span className="ml-2 font-medium">{plan.sessionClassType}</span>
+                        </div>
+                      )}
+                      {plan.sessionFormat && (
+                        <div>
+                          <span className="text-gray-500">Format:</span>
+                          <span className="ml-2 font-medium capitalize">{plan.sessionFormat.replace('-', ' ')}</span>
+                        </div>
+                      )}
+                      {plan.scheduledDate && (
+                        <div>
+                          <span className="text-gray-500">Scheduled Date:</span>
+                          <span className="ml-2 font-medium">
+                            {new Date(plan.scheduledDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                      {plan.scheduledTime && (
+                        <div>
+                          <span className="text-gray-500">Scheduled Time:</span>
+                          <span className="ml-2 font-medium">{plan.scheduledTime}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-gray-500">Created:</span>
+                        <span className="ml-2 font-medium">
+                          {new Date(plan.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => {
+                  setShowPlansModal(false);
+                  setSelectedExpert(null);
+                  setExpertPlans([]);
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              >
+                Close
               </button>
             </div>
           </div>

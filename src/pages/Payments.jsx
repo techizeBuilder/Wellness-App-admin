@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Search, Download, CreditCard, Banknote, Eye, RefreshCw, DollarSign, Edit3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Download, CreditCard, Banknote, Eye, RefreshCw, DollarSign, Edit3, Loader2 } from 'lucide-react';
 import Card from '../components/Card';
 import Chart, { CustomLineChart } from '../components/Chart';
-import { payments, revenueData, formatDate, formatCurrency, getStatusColor } from '../utils/dummyData';
+import { formatDate, formatCurrency, getStatusColor } from '../utils/dummyData';
+import { apiGet, apiPatch } from '../utils/api';
 
 const Payments = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,23 +13,139 @@ const Payments = () => {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    pendingAmount: 0,
+    refundedAmount: 0,
+    totalTransactions: 0
+  });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0
+  });
   const paymentsPerPage = 20;
 
+  useEffect(() => {
+    // Reset to page 1 when filter or search changes
+    setCurrentPage(1);
+  }, [statusFilter, searchTerm]);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [currentPage, statusFilter, searchTerm]);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: paymentsPerPage.toString()
+      });
+      
+      if (statusFilter !== 'All') {
+        params.append('status', statusFilter);
+      }
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+
+      const response = await apiGet(`/api/admin/payments?${params.toString()}`);
+      const paymentsData = response?.data?.payments || [];
+      const statsData = response?.data?.stats || stats;
+      const paginationData = response?.data?.pagination || pagination;
+
+      // Transform payments to match UI format
+      const transformedPayments = paymentsData.map(payment => transformPayment(payment));
+      
+      setPayments(transformedPayments);
+      setStats(statsData);
+      setPagination(paginationData);
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      alert(error.message || 'Failed to fetch payments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const transformPayment = (payment) => {
+    // Map status from DB format to UI format
+    const statusMap = {
+      'completed': 'Completed',
+      'pending': 'Pending',
+      'refunded': 'Refunded',
+      'failed': 'Failed',
+      'processing': 'Processing',
+      'cancelled': 'Cancelled'
+    };
+
+    // Map payment method from DB format to UI format
+    const methodMap = {
+      'card': 'Credit Card',
+      'upi': 'UPI',
+      'wallet': 'Wallet',
+      'netbanking': 'Net Banking',
+      'other': 'Other'
+    };
+
+    // Get user name
+    const userName = payment.user 
+      ? `${payment.user.firstName || ''} ${payment.user.lastName || ''}`.trim() || payment.user.email
+      : 'Unknown User';
+
+    // Get service name
+    let serviceName = 'Payment';
+    if (payment.appointment) {
+      serviceName = 'Appointment Session';
+    } else if (payment.subscription) {
+      serviceName = payment.subscription.planName || 'Subscription';
+    } else if (payment.plan) {
+      serviceName = payment.plan.name || 'Plan';
+    }
+
+    // Get transaction ID
+    const transactionId = payment.razorpayPaymentId || payment.razorpayOrderId || payment._id.toString().slice(-8).toUpperCase();
+
+    // Format date
+    const paymentDate = payment.paidAt || payment.createdAt || new Date();
+
+    return {
+      id: payment._id,
+      transactionId: transactionId,
+      user: userName,
+      amount: payment.amount,
+      method: methodMap[payment.paymentMethod] || 'Other',
+      date: paymentDate,
+      status: statusMap[payment.status] || payment.status,
+      service: serviceName,
+      originalPayment: payment // Keep original for modals
+    };
+  };
+
+  // Use payments directly since filtering is done server-side
+  // Client-side filtering for search term (as fallback if API doesn't handle it well)
   const filteredPayments = payments.filter(payment => {
-    const matchesSearch = payment.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         payment.service.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || payment.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    if (searchTerm) {
+      const matchesSearch = payment.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           payment.service.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+    }
+    // Status filtering is done server-side, but we can also filter client-side as fallback
+    if (statusFilter !== 'All' && payment.status !== statusFilter) {
+      return false;
+    }
+    return true;
   });
 
-  const totalRevenue = payments.reduce((sum, p) => p.status === 'Completed' ? sum + p.amount : sum, 0);
-  const pendingAmount = payments.reduce((sum, p) => p.status === 'Pending' ? sum + p.amount : sum, 0);
-  const refundedAmount = payments.reduce((sum, p) => p.status === 'Refunded' ? sum + p.amount : sum, 0);
-
-  const totalPages = Math.ceil(filteredPayments.length / paymentsPerPage);
-  const startIndex = (currentPage - 1) * paymentsPerPage;
-  const currentPayments = filteredPayments.slice(startIndex, startIndex + paymentsPerPage);
+  const totalPages = pagination.pages || 1;
+  const currentPayments = filteredPayments;
 
   const getPaymentMethodIcon = (method) => {
     switch (method) {
@@ -59,18 +176,56 @@ const Payments = () => {
     setShowStatusModal(true);
   };
 
-  const processRefund = () => {
-    console.log('Processing refund for payment:', selectedPayment.transactionId);
-    alert('Refund processed successfully!');
-    setShowRefundModal(false);
-    setSelectedPayment(null);
+  const processRefund = async () => {
+    if (!selectedPayment?.originalPayment?._id) return;
+    
+    try {
+      setUpdating(true);
+      await apiPatch(`/api/admin/payments/${selectedPayment.originalPayment._id}/status`, {
+        status: 'refunded'
+      });
+      alert('Refund processed successfully!');
+      setShowRefundModal(false);
+      setSelectedPayment(null);
+      fetchPayments(); // Refresh the list
+    } catch (error) {
+      console.error('Error processing refund:', error);
+      alert(error.message || 'Failed to process refund');
+    } finally {
+      setUpdating(false);
+    }
   };
 
-  const updatePaymentStatus = (newStatus) => {
-    console.log('Updating payment status:', selectedPayment.transactionId, 'to', newStatus);
-    alert(`Payment status updated to ${newStatus}`);
-    setShowStatusModal(false);
-    setSelectedPayment(null);
+  const updatePaymentStatus = async (newStatus) => {
+    if (!selectedPayment?.originalPayment?._id) return;
+    
+    // Map UI status to DB status
+    const statusMap = {
+      'Completed': 'completed',
+      'Pending': 'pending',
+      'Refunded': 'refunded',
+      'Failed': 'failed',
+      'Processing': 'processing',
+      'Cancelled': 'cancelled'
+    };
+    
+    const dbStatus = statusMap[newStatus] || newStatus.toLowerCase();
+    
+    try {
+      setUpdating(true);
+      await apiPatch(`/api/admin/payments/${selectedPayment.originalPayment._id}/status`, {
+        status: dbStatus
+      });
+      alert(`Payment status updated to ${newStatus}`);
+      setShowStatusModal(false);
+      setSelectedPayment(null);
+      fetchPayments(); // Refresh the list
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      alert(error.message || 'Failed to update payment status');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   // View Payment Modal Component
@@ -227,8 +382,10 @@ const Payments = () => {
             </button>
             <button 
               onClick={processRefund}
-              className="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
+              disabled={updating}
+              className="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
+              {updating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Process Refund
             </button>
           </div>
@@ -268,20 +425,26 @@ const Payments = () => {
           <div className="space-y-2 mb-4">
             <button 
               onClick={() => updatePaymentStatus('Completed')}
-              className="w-full px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors"
+              disabled={updating}
+              className="w-full px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
+              {updating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Mark as Completed
             </button>
             <button 
               onClick={() => updatePaymentStatus('Failed')}
-              className="w-full px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
+              disabled={updating}
+              className="w-full px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
+              {updating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Mark as Failed
             </button>
             <button 
               onClick={() => updatePaymentStatus('Pending')}
-              className="w-full px-4 py-2 text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors"
+              disabled={updating}
+              className="w-full px-4 py-2 text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
+              {updating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Mark as Pending
             </button>
           </div>
@@ -317,25 +480,25 @@ const Payments = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="text-center">
           <div className="p-4">
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</div>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</div>
             <div className="text-sm text-gray-600">Total Revenue</div>
           </div>
         </Card>
         <Card className="text-center">
           <div className="p-4">
-            <div className="text-2xl font-bold text-yellow-600">{formatCurrency(pendingAmount)}</div>
+            <div className="text-2xl font-bold text-yellow-600">{formatCurrency(stats.pendingAmount)}</div>
             <div className="text-sm text-gray-600">Pending</div>
           </div>
         </Card>
         <Card className="text-center">
           <div className="p-4">
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(refundedAmount)}</div>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(stats.refundedAmount)}</div>
             <div className="text-sm text-gray-600">Refunded</div>
           </div>
         </Card>
         <Card className="text-center">
           <div className="p-4">
-            <div className="text-2xl font-bold text-primary-900">{payments.length}</div>
+            <div className="text-2xl font-bold text-primary-900">{stats.totalTransactions}</div>
             <div className="text-sm text-gray-600">Total Transactions</div>
           </div>
         </Card>
@@ -386,21 +549,31 @@ const Payments = () => {
       {/* Payments Table */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full table-hover">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Transaction ID</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">User</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Service</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Amount</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Method</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Date</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Status</th>
-                <th className="py-3 px-4 text-left font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentPayments.map((payment) => (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="animate-spin text-primary-600" size={32} />
+              <span className="ml-3 text-gray-600">Loading payments...</span>
+            </div>
+          ) : currentPayments.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">No payments found</p>
+            </div>
+          ) : (
+            <table className="w-full table-hover">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">Transaction ID</th>
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">User</th>
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">Service</th>
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">Amount</th>
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">Method</th>
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">Date</th>
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">Status</th>
+                  <th className="py-3 px-4 text-left font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentPayments.map((payment) => (
                 <tr key={payment.id} className="border-b border-gray-100">
                   <td className="py-3 px-4">
                     <div className="font-mono text-sm text-primary-900">
@@ -465,29 +638,30 @@ const Payments = () => {
                       )}
                     </div>
                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!loading && totalPages > 1 && (
           <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              Showing {startIndex + 1} to {Math.min(startIndex + paymentsPerPage, filteredPayments.length)} of {filteredPayments.length} payments
+              Showing {((currentPage - 1) * paymentsPerPage) + 1} to {Math.min(currentPage * paymentsPerPage, pagination.total || filteredPayments.length)} of {pagination.total || filteredPayments.length} payments
             </div>
             <div className="flex space-x-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || loading}
                 className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
               >
                 Previous
               </button>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || loading}
                 className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
               >
                 Next
