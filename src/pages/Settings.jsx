@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
-import { Save, Eye, EyeOff, Bell, Globe, Shield, Palette } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Eye, EyeOff, Bell, Globe, Shield, Palette, RefreshCw } from 'lucide-react';
 import Card from '../components/Card';
+import { apiGet, apiPut } from '../utils/api';
+import toast from 'react-hot-toast';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: 'Admin User',
-    email: 'admin@zenovia.com',
-    phone: '+91 9876543210',
-    role: 'Super Admin',
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -34,6 +38,60 @@ const Settings = () => {
     theme: 'light'
   });
 
+  // Load admin profile on mount
+  useEffect(() => {
+    fetchProfile();
+    loadNotificationPreferences();
+    loadGeneralSettings();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await apiGet('/api/admin/profile');
+      
+      if (response.success && response.data?.admin) {
+        const admin = response.data.admin;
+        setFormData(prev => ({
+          ...prev,
+          name: admin.name || '',
+          email: admin.email || '',
+          phone: '', // Admin model doesn't have phone field
+          role: admin.role === 'superadmin' ? 'Super Admin' : 'Admin'
+        }));
+      } else {
+        throw new Error(response.message || 'Failed to fetch profile');
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      toast.error(error.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadNotificationPreferences = () => {
+    try {
+      const saved = localStorage.getItem('adminNotificationPreferences');
+      if (saved) {
+        setNotifications(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading notification preferences:', error);
+    }
+  };
+
+  const loadGeneralSettings = () => {
+    try {
+      const saved = localStorage.getItem('adminGeneralSettings');
+      if (saved) {
+        setGeneralSettings(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading general settings:', error);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -48,28 +106,96 @@ const Settings = () => {
     setGeneralSettings(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSaveProfile = () => {
-    // Here you would typically make an API call to update the profile
-    alert('Profile updated successfully!');
-  };
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      
+      if (!formData.name || !formData.email) {
+        toast.error('Name and email are required');
+        return;
+      }
 
-  const handleChangePassword = () => {
-    if (formData.newPassword !== formData.confirmPassword) {
-      alert('New password and confirm password do not match!');
-      return;
+      const response = await apiPut('/api/admin/profile', {
+        name: formData.name,
+        email: formData.email
+      });
+
+      if (response.success) {
+        toast.success('Profile updated successfully!');
+        // Refresh profile data
+        await fetchProfile();
+      } else {
+        throw new Error(response.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error(error.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
     }
-    // Here you would typically make an API call to change the password
-    alert('Password changed successfully!');
-    setFormData(prev => ({
-      ...prev,
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    }));
   };
 
-  const handleSaveSettings = () => {
-    alert('Settings saved successfully!');
+  const handleChangePassword = async () => {
+    try {
+      if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
+        toast.error('All password fields are required');
+        return;
+      }
+
+      if (formData.newPassword !== formData.confirmPassword) {
+        toast.error('New password and confirm password do not match!');
+        return;
+      }
+
+      if (formData.newPassword.length < 6) {
+        toast.error('Password must be at least 6 characters long');
+        return;
+      }
+
+      setSaving(true);
+
+      const response = await apiPut('/api/admin/change-password', {
+        oldPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      });
+
+      if (response.success) {
+        toast.success('Password changed successfully!');
+        setFormData(prev => ({
+          ...prev,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        }));
+      } else {
+        throw new Error(response.message || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast.error(error.message || 'Failed to change password');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveNotificationPreferences = () => {
+    try {
+      localStorage.setItem('adminNotificationPreferences', JSON.stringify(notifications));
+      toast.success('Notification preferences saved successfully!');
+    } catch (error) {
+      console.error('Error saving notification preferences:', error);
+      toast.error('Failed to save notification preferences');
+    }
+  };
+
+  const handleSaveGeneralSettings = () => {
+    try {
+      localStorage.setItem('adminGeneralSettings', JSON.stringify(generalSettings));
+      toast.success('General settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving general settings:', error);
+      toast.error('Failed to save general settings');
+    }
   };
 
   const tabs = [
@@ -78,6 +204,17 @@ const Settings = () => {
     { id: 'general', name: 'General', icon: Globe },
     { id: 'appearance', name: 'Appearance', icon: Palette }
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <RefreshCw className="animate-spin mx-auto text-primary-900" size={48} />
+          <p className="mt-4 text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -159,16 +296,6 @@ const Settings = () => {
                       />
                     </div>
                     <div>
-                      <label className="form-label">Phone Number</label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        className="form-input"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div>
                       <label className="form-label">Role</label>
                       <input
                         type="text"
@@ -180,9 +307,13 @@ const Settings = () => {
                   </div>
 
                   <div className="flex justify-end">
-                    <button onClick={handleSaveProfile} className="btn-primary flex items-center space-x-2">
+                    <button 
+                      onClick={handleSaveProfile} 
+                      className="btn-primary flex items-center space-x-2"
+                      disabled={saving}
+                    >
                       <Save size={16} />
-                      <span>Save Changes</span>
+                      <span>{saving ? 'Saving...' : 'Save Changes'}</span>
                     </button>
                   </div>
                 </div>
@@ -243,8 +374,12 @@ const Settings = () => {
                   </div>
 
                   <div className="flex justify-end">
-                    <button onClick={handleChangePassword} className="btn-primary">
-                      Change Password
+                    <button 
+                      onClick={handleChangePassword} 
+                      className="btn-primary"
+                      disabled={saving}
+                    >
+                      {saving ? 'Changing...' : 'Change Password'}
                     </button>
                   </div>
                 </div>
@@ -318,7 +453,7 @@ const Settings = () => {
                 </div>
 
                 <div className="flex justify-end">
-                  <button onClick={handleSaveSettings} className="btn-primary">
+                  <button onClick={handleSaveNotificationPreferences} className="btn-primary">
                     Save Preferences
                   </button>
                 </div>
@@ -398,7 +533,7 @@ const Settings = () => {
                 </div>
 
                 <div className="flex justify-end">
-                  <button onClick={handleSaveSettings} className="btn-primary">
+                  <button onClick={handleSaveGeneralSettings} className="btn-primary">
                     Save Settings
                   </button>
                 </div>
@@ -460,7 +595,7 @@ const Settings = () => {
                 </div>
 
                 <div className="flex justify-end">
-                  <button onClick={handleSaveSettings} className="btn-primary">
+                  <button onClick={handleSaveGeneralSettings} className="btn-primary">
                     Save Appearance
                   </button>
                 </div>
