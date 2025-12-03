@@ -2,6 +2,7 @@
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import config from '../utils/config';
+import { apiGet } from '../utils/api';
 import { 
   Users as UsersIcon, 
   UserCheck, 
@@ -150,26 +151,16 @@ const Experts = () => {
   // Fetch expert statistics
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const response = await apiGet('/api/admin/experts/stats');
       
-      const response = await fetch('http://localhost:5000/api/admin/experts/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch stats');
+      if (response.success && response.data?.stats) {
+        setStats(response.data.stats);
+      } else {
+        throw new Error(response.message || 'Failed to fetch stats');
       }
-
-      const data = await response.json();
-      const statsData = data.data?.stats || data.stats || {};
-      setStats(statsData);
     } catch (error) {
       console.error('Error fetching stats:', error);
-      toast.error('Failed to fetch stats: ' + error.message);
+      toast.error('Failed to fetch stats: ' + (error.message || 'Unknown error'));
     }
   };
 

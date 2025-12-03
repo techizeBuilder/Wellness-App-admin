@@ -2,6 +2,7 @@
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import config from '../utils/config';
+import { apiGet, apiPut, apiDelete } from '../utils/api';
 import { Users as UsersIcon, UserCheck, UserX, Plus, Eye, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 
 const Users = () => {
@@ -93,33 +94,16 @@ const Users = () => {
   // Fetch user statistics
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      console.log('Fetching stats with token:', token ? 'Token exists' : 'No token');
+      const response = await apiGet('/api/admin/users/stats');
       
-      const response = await fetch('http://localhost:5000/api/admin/users/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('Stats response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Stats API Error:', errorData);
-        throw new Error(errorData.message || 'Failed to fetch stats');
+      if (response.success && response.data?.stats) {
+        setStats(response.data.stats);
+      } else {
+        throw new Error(response.message || 'Failed to fetch stats');
       }
-
-      const data = await response.json();
-      console.log('Stats API response:', data);
-      
-      // Handle both possible response structures
-      const statsData = data.data?.stats || data.stats || data.data || {};
-      setStats(statsData);
     } catch (error) {
       console.error('Error fetching stats:', error);
-      toast.error('Failed to fetch stats: ' + error.message);
+      toast.error('Failed to fetch stats: ' + (error.message || 'Unknown error'));
     }
   };
 
