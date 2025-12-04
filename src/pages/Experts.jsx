@@ -13,8 +13,10 @@ import {
   Search,
   Star,
   Clock,
-  DollarSign,
-  X
+  IndianRupee,
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const Experts = () => {
@@ -58,6 +60,8 @@ const Experts = () => {
   const [specializations, setSpecializations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalExperts, setTotalExperts] = useState(0);
+  const expertsPerPage = 20;
 
   // Helper function to get profile image URL
   const getProfileImageUrl = (expert) => {
@@ -108,7 +112,7 @@ const Experts = () => {
       
       const queryParams = new URLSearchParams({
         page: currentPage,
-        limit: 20,
+        limit: expertsPerPage,
         search: searchTerm,
         status: statusFilter,
         verificationStatus: verificationFilter
@@ -135,7 +139,8 @@ const Experts = () => {
       const pagination = data.data?.pagination || {};
       
       setExperts(experts);
-      setTotalPages(pagination.totalPages || 1);
+      setTotalPages(pagination.pages || pagination.totalPages || 1);
+      setTotalExperts(pagination.total || experts.length);
       
       if (experts && experts.length > 0) {
         toast.success(`Loaded ${experts.length} experts`);
@@ -626,8 +631,8 @@ const Experts = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm text-gray-900">
-                            <DollarSign size={16} className="mr-1 text-gray-400" />
-                            ${expert.hourlyRate || 0}/hr
+                            <IndianRupee size={16} className="mr-1 text-gray-400" />
+                            ₹{expert.hourlyRate || 0}/hr
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -694,6 +699,38 @@ const Experts = () => {
                 </table>
               </div>
             )}
+            
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Showing {((currentPage - 1) * expertsPerPage) + 1} to {Math.min(currentPage * expertsPerPage, totalExperts)} of {totalExperts} experts
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center space-x-1"
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Previous</span>
+                  </button>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-sm text-gray-700">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center space-x-1"
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -746,7 +783,7 @@ const Experts = () => {
               </div>
               <div>
                 <label className="font-medium text-gray-700">Hourly Rate:</label>
-                <p className="text-gray-900">${selectedExpert.hourlyRate}/hr</p>
+                <p className="text-gray-900">₹{selectedExpert.hourlyRate}/hr</p>
               </div>
               <div>
                 <label className="font-medium text-gray-700">Status:</label>
@@ -775,10 +812,10 @@ const Experts = () => {
             </div>
             
             {/* Bank Account Details Section */}
-            {selectedExpert.bankAccount && (
+              {selectedExpert.bankAccount && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h4 className="text-md font-semibold text-gray-800 mb-4 flex items-center">
-                  <DollarSign size={18} className="mr-2" />
+                  <IndianRupee size={18} className="mr-2" />
                   Bank Account Details
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg">
@@ -825,7 +862,7 @@ const Experts = () => {
             {!selectedExpert.bankAccount && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h4 className="text-md font-semibold text-gray-800 mb-2 flex items-center">
-                  <DollarSign size={18} className="mr-2" />
+                <IndianRupee size={18} className="mr-2" />
                   Bank Account Details
                 </h4>
                 <p className="text-gray-500 italic">No bank account details available</p>
@@ -1089,7 +1126,7 @@ const Experts = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-xl font-bold text-gray-900">
-                          ${plan.type === 'monthly' ? (plan.monthlyPrice || plan.price) : plan.price}
+                          ₹{plan.type === 'monthly' ? (plan.monthlyPrice || plan.price) : plan.price}
                         </p>
                         {plan.type === 'monthly' && (
                           <p className="text-sm text-gray-500">per month</p>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, TrendingUp, Users, Calendar, DollarSign } from 'lucide-react';
+import { Download, TrendingUp, Users, Calendar, IndianRupee } from 'lucide-react';
 import Card from '../components/Card';
 import Chart, { CustomLineChart, CustomBarChart, CustomPieChart } from '../components/Chart';
 import {
@@ -105,7 +105,7 @@ const Reports = () => {
         <Card className="text-center">
           <div className="p-4 flex items-center space-x-4">
             <div className="p-3 bg-coral-100 rounded-lg">
-              <DollarSign className="text-coral-400" size={24} />
+              <IndianRupee className="text-coral-400" size={24} />
             </div>
             <div className="text-left">
               <div className="text-2xl font-bold text-gray-900">{formatCurrency(dashboardStats.monthlyRevenue)}</div>

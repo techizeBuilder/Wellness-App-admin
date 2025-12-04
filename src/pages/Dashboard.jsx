@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, Calendar, DollarSign, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, UserCheck, Calendar, IndianRupee, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import Card, { StatsCard } from '../components/Card';
 import Chart, { CustomLineChart, CustomBarChart, CustomAreaChart } from '../components/Chart';
 import { apiGet } from '../utils/api';
@@ -11,6 +12,7 @@ import {
 } from '../utils/dummyData';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     stats: {
@@ -136,7 +138,7 @@ const Dashboard = () => {
           value={formatCurrency(dashboardData.stats.monthlyRevenue)}
           change={formatGrowthChange(dashboardData.growth.revenue)}
           changeType={dashboardData.growth.revenue >= 0 ? "positive" : "negative"}
-          icon={DollarSign}
+          icon={IndianRupee}
         />
       </div>
 
@@ -262,10 +264,16 @@ const Dashboard = () => {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex space-x-2">
-                        <button className="text-primary-900 hover:text-primary-700 text-sm font-medium">
+                        <button
+                          onClick={() => navigate('/bookings')}
+                          className="text-primary-900 hover:text-primary-700 text-sm font-medium"
+                        >
                           View
                         </button>
-                        <button className="text-coral-400 hover:text-coral-500 text-sm font-medium">
+                        <button
+                          onClick={() => navigate('/bookings')}
+                          className="text-coral-400 hover:text-coral-500 text-sm font-medium"
+                        >
                           Edit
                         </button>
                       </div>
@@ -278,7 +286,10 @@ const Dashboard = () => {
         </div>
         
         <div className="mt-4 flex justify-center">
-          <button className="btn-secondary">
+          <button
+            onClick={() => navigate('/bookings')}
+            className="btn-secondary"
+          >
             View All Bookings
           </button>
         </div>

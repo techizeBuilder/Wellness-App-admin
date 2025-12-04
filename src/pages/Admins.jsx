@@ -12,7 +12,9 @@ import {
   EyeOff,
   ChevronLeft,
   ChevronRight,
-  Key
+  Key,
+  UserX,
+  UserCheck
 } from 'lucide-react';
 
 const Admins = () => {
@@ -25,11 +27,43 @@ const Admins = () => {
   const [showUpdatePasswordModal, setShowUpdatePasswordModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [permissions, setPermissions] = useState([]);
+  const [currentAdmin, setCurrentAdmin] = useState(null);
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+
+  // Fetch current admin info
+  useEffect(() => {
+    const fetchCurrentAdmin = async () => {
+      try {
+        const adminUserStr = localStorage.getItem('adminUser');
+        if (adminUserStr) {
+          const adminUser = JSON.parse(adminUserStr);
+          setCurrentAdmin({
+            id: adminUser.id || adminUser._id,
+            role: adminUser.role === 'superadmin' ? 'super_admin' : 'admin'
+          });
+        } else {
+          // Fallback: fetch from API
+          const { apiGet } = await import('../utils/api');
+          const res = await apiGet('/api/admin/profile');
+          if (res.success && res.data?.admin) {
+            const admin = res.data.admin;
+            setCurrentAdmin({
+              id: admin.id || admin._id,
+              role: admin.role === 'superadmin' ? 'super_admin' : 'admin'
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch current admin', err);
+      }
+    };
+
+    fetchCurrentAdmin();
+  }, []);
 
   // Dummy data for admins
   useEffect(() => {
@@ -383,7 +417,7 @@ const Admins = () => {
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
-              <Eye size={24} className="text-green-600" />
+              <UserCheck size={24} className="text-green-600" />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Active</p>
@@ -397,7 +431,7 @@ const Admins = () => {
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="p-2 bg-red-100 rounded-lg">
-              <EyeOff size={24} className="text-red-600" />
+              <UserX size={24} className="text-red-600" />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Inactive</p>
@@ -505,14 +539,27 @@ const Admins = () => {
                       {/* Toggle Status Button */}
                       <button
                         onClick={() => toggleAdminStatus(admin.id)}
+                        disabled={
+                          currentAdmin && currentAdmin.id === admin.id && admin.status === 'active'
+                        }
                         className={`p-2 rounded-full transition-colors ${
                           admin.status === 'active' 
                             ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50' 
                             : 'text-green-600 hover:text-green-800 hover:bg-green-50'
+                        } ${
+                          (currentAdmin && currentAdmin.id === admin.id && admin.status === 'active')
+                            ? 'opacity-50 cursor-not-allowed' 
+                            : ''
                         }`}
-                        title={admin.status === 'active' ? 'Deactivate Admin' : 'Activate Admin'}
+                        title={
+                          (currentAdmin && currentAdmin.id === admin.id && admin.status === 'active')
+                            ? (currentAdmin.role === 'super_admin' 
+                                ? 'Superadmin cannot deactivate itself' 
+                                : 'You cannot deactivate yourself')
+                            : (admin.status === 'active' ? 'Deactivate Admin' : 'Activate Admin')
+                        }
                       >
-                        {admin.status === 'active' ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {admin.status === 'active' ? <UserX size={16} /> : <UserCheck size={16} />}
                       </button>
                       
                       {/* Delete Button */}

@@ -3,7 +3,7 @@ import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import config from '../utils/config';
 import { apiGet, apiPut, apiDelete } from '../utils/api';
-import { Users as UsersIcon, UserCheck, UserX, Plus, Eye, Edit, Trash2, MoreHorizontal } from 'lucide-react';
+import { Users as UsersIcon, UserCheck, UserX, Plus, Eye, Edit, Trash2, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -14,6 +14,12 @@ const Users = () => {
     inactiveUsers: 0,
     newUsersThisMonth: 0
   });
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const usersPerPage = 20;
   
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
@@ -58,7 +64,12 @@ const Users = () => {
       const token = localStorage.getItem('adminToken');
       console.log('Fetching users with token:', token ? 'Token exists' : 'No token');
       
-      const response = await fetch('http://localhost:5000/api/admin/users', {
+      const queryParams = new URLSearchParams({
+        page: currentPage,
+        limit: usersPerPage
+      });
+      
+      const response = await fetch(`http://localhost:5000/api/admin/users?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -78,7 +89,11 @@ const Users = () => {
       
       // The API returns data in format: { success: true, data: { users: [...], pagination: {...} } }
       const users = data.data?.users || data.users || [];
+      const pagination = data.data?.pagination || {};
+      
       setUsers(users);
+      setTotalPages(pagination.pages || 1);
+      setTotalUsers(pagination.total || users.length);
       
       if (users && users.length > 0) {
         toast.success(`Loaded ${users.length} users`);
@@ -110,7 +125,7 @@ const Users = () => {
   useEffect(() => {
     fetchUsers();
     fetchStats();
-  }, []);
+  }, [currentPage]);
 
   // Action handlers
   const handleViewUser = (user) => {
@@ -422,6 +437,38 @@ const Users = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Showing {((currentPage - 1) * usersPerPage) + 1} to {Math.min(currentPage * usersPerPage, totalUsers)} of {totalUsers} users
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center space-x-1"
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Previous</span>
+                  </button>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-sm text-gray-700">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex items-center space-x-1"
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
