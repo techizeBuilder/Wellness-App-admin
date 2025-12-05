@@ -1,43 +1,110 @@
-import React, { useState } from 'react';
-import { Download, TrendingUp, Users, Calendar, IndianRupee } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Download, TrendingUp, Users, Calendar, IndianRupee, RefreshCw } from 'lucide-react';
 import Card from '../components/Card';
 import Chart, { CustomLineChart, CustomBarChart, CustomPieChart } from '../components/Chart';
-import {
-  dashboardStats,
-  revenueData,
-  categoryData,
-  userGrowthData,
-  formatCurrency
-} from '../utils/dummyData';
+import { apiGet } from '../utils/api';
+import { formatCurrency } from '../utils/dummyData';
+import toast from 'react-hot-toast';
 
 const Reports = () => {
   const [dateRange, setDateRange] = useState('last30days');
-  const [reportType, setReportType] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [reportsData, setReportsData] = useState({
+    stats: {
+      totalUsers: 0,
+      activeBookings: 0,
+      monthlyRevenue: 0,
+      conversionRate: '0.0'
+    },
+    growth: {
+      users: 0,
+      bookings: 0,
+      revenue: 0
+    },
+    revenueData: [],
+    userGrowthData: [],
+    categoryData: [],
+    monthlyActiveUsers: [],
+    expertPerformance: [],
+    bookingStats: {
+      successRate: '0.0',
+      successful: 0,
+      cancelled: 0,
+      noShows: 0
+    },
+    satisfaction: {
+      average: '0.0',
+      distribution: []
+    },
+    platformGrowth: {
+      newUsers: 0,
+      revenueGrowth: 0
+    }
+  });
 
-  // Generate monthly active users data
-  const monthlyActiveUsers = [
-    { name: 'Jan', users: 1850, sessions: 4200 },
-    { name: 'Feb', users: 2100, sessions: 4800 },
-    { name: 'Mar', users: 2350, sessions: 5400 },
-    { name: 'Apr', users: 2200, sessions: 5100 },
-    { name: 'May', users: 2500, sessions: 5800 },
-    { name: 'Jun', users: 2750, sessions: 6300 },
-    { name: 'Jul', users: 2900, sessions: 6800 },
-    { name: 'Aug', users: 2847, sessions: 6950 }
-  ];
+  const fetchReportsData = async () => {
+    try {
+      setLoading(true);
+      const response = await apiGet(`/api/admin/reports?dateRange=${dateRange}`);
+      
+      if (response.success && response.data) {
+        setReportsData(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to fetch reports data');
+      }
+    } catch (error) {
+      console.error('Error fetching reports data:', error);
+      toast.error(error?.message || 'Failed to load reports data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const expertPerformanceData = [
-    { name: 'Dr. Priya Sharma', sessions: 245, revenue: 98000, rating: 4.8 },
-    { name: 'Nutritionist Maya', sessions: 189, revenue: 75600, rating: 4.9 },
-    { name: 'Ayurveda Expert Ram', sessions: 167, revenue: 83500, rating: 4.7 },
-    { name: 'Meditation Guru Anand', sessions: 134, revenue: 40200, rating: 4.9 },
-    { name: 'Dr. Kavita Nair', sessions: 98, revenue: 39200, rating: 4.6 }
-  ];
+  useEffect(() => {
+    fetchReportsData();
+  }, [dateRange]);
 
   const handleExportReport = () => {
-    // This would typically generate and download a PDF/Excel report
-    alert('Report exported successfully!');
+    try {
+      // Create a simple CSV export
+      const csvData = [
+        ['Report Type', 'Value'],
+        ['Total Users', reportsData.stats.totalUsers],
+        ['Active Bookings', reportsData.stats.activeBookings],
+        ['Monthly Revenue', reportsData.stats.monthlyRevenue],
+        ['Conversion Rate', `${reportsData.stats.conversionRate}%`],
+        ['Booking Success Rate', `${reportsData.bookingStats.successRate}%`],
+        ['Customer Satisfaction', `${reportsData.satisfaction.average}/5`]
+      ];
+
+      const csvContent = csvData.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zenovia-report-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Report exported successfully!');
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      toast.error('Failed to export report');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <RefreshCw className="animate-spin mx-auto text-primary-900" size={48} />
+          <p className="mt-4 text-gray-600">Loading reports...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -52,6 +119,7 @@ const Reports = () => {
             className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
+            disabled={loading}
           >
             <option value="last7days">Last 7 days</option>
             <option value="last30days">Last 30 days</option>
@@ -59,8 +127,17 @@ const Reports = () => {
             <option value="last365days">Last 365 days</option>
           </select>
           <button 
+            onClick={fetchReportsData}
+            className="btn-secondary flex items-center space-x-2"
+            disabled={loading}
+          >
+            <RefreshCw className={loading ? 'animate-spin' : ''} size={16} />
+            <span>Refresh</span>
+          </button>
+          <button 
             onClick={handleExportReport}
             className="btn-primary flex items-center space-x-2"
+            disabled={loading}
           >
             <Download size={16} />
             <span>Export Report</span>
@@ -76,11 +153,11 @@ const Reports = () => {
               <Users className="text-primary-900" size={24} />
             </div>
             <div className="text-left">
-              <div className="text-2xl font-bold text-gray-900">{dashboardStats.totalUsers.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-900">{reportsData.stats.totalUsers.toLocaleString()}</div>
               <div className="text-sm text-gray-600">Total Users</div>
-              <div className="text-xs text-green-600 flex items-center mt-1">
+              <div className={`text-xs flex items-center mt-1 ${reportsData.growth.users >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp size={12} className="mr-1" />
-                +12% vs last month
+                {reportsData.growth.users >= 0 ? '+' : ''}{reportsData.growth.users}% vs previous period
               </div>
             </div>
           </div>
@@ -92,11 +169,11 @@ const Reports = () => {
               <Calendar className="text-gold-600" size={24} />
             </div>
             <div className="text-left">
-              <div className="text-2xl font-bold text-gray-900">{dashboardStats.activeBookings}</div>
+              <div className="text-2xl font-bold text-gray-900">{reportsData.stats.activeBookings}</div>
               <div className="text-sm text-gray-600">Active Bookings</div>
-              <div className="text-xs text-green-600 flex items-center mt-1">
+              <div className={`text-xs flex items-center mt-1 ${reportsData.growth.bookings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp size={12} className="mr-1" />
-                +8% vs last week
+                {reportsData.growth.bookings >= 0 ? '+' : ''}{reportsData.growth.bookings}% vs previous period
               </div>
             </div>
           </div>
@@ -108,11 +185,11 @@ const Reports = () => {
               <IndianRupee className="text-coral-400" size={24} />
             </div>
             <div className="text-left">
-              <div className="text-2xl font-bold text-gray-900">{formatCurrency(dashboardStats.monthlyRevenue)}</div>
-              <div className="text-sm text-gray-600">Monthly Revenue</div>
-              <div className="text-xs text-green-600 flex items-center mt-1">
+              <div className="text-2xl font-bold text-gray-900">{formatCurrency(reportsData.stats.monthlyRevenue)}</div>
+              <div className="text-sm text-gray-600">Revenue ({dateRange.replace('last', '').replace('days', ' days')})</div>
+              <div className={`text-xs flex items-center mt-1 ${reportsData.growth.revenue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp size={12} className="mr-1" />
-                +15% vs last month
+                {reportsData.growth.revenue >= 0 ? '+' : ''}{reportsData.growth.revenue}% vs previous period
               </div>
             </div>
           </div>
@@ -124,11 +201,10 @@ const Reports = () => {
               <TrendingUp className="text-green-600" size={24} />
             </div>
             <div className="text-left">
-              <div className="text-2xl font-bold text-gray-900">68.2%</div>
+              <div className="text-2xl font-bold text-gray-900">{reportsData.stats.conversionRate}%</div>
               <div className="text-sm text-gray-600">Conversion Rate</div>
-              <div className="text-xs text-green-600 flex items-center mt-1">
-                <TrendingUp size={12} className="mr-1" />
-                +5.2% vs last month
+              <div className="text-xs text-gray-500 flex items-center mt-1">
+                Based on completed bookings
               </div>
             </div>
           </div>
@@ -139,27 +215,39 @@ const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Growth */}
         <Chart title="Revenue Growth">
-          <CustomLineChart
-            data={revenueData}
-            xDataKey="name"
-            lines={[
-              { dataKey: 'revenue', name: 'Revenue', color: '#004d4d' }
-            ]}
-            height={300}
-            formatter={(value) => formatCurrency(value)}
-          />
+          {reportsData.revenueData.length > 0 ? (
+            <CustomLineChart
+              data={reportsData.revenueData}
+              xDataKey="name"
+              lines={[
+                { dataKey: 'revenue', name: 'Revenue', color: '#004d4d' }
+              ]}
+              height={300}
+              formatter={(value) => formatCurrency(value)}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">
+              No revenue data available for this period
+            </div>
+          )}
         </Chart>
 
         {/* User Growth */}
         <Chart title="User Growth">
-          <CustomLineChart
-            data={userGrowthData}
-            xDataKey="name"
-            lines={[
-              { dataKey: 'users', name: 'Users', color: '#ff6f61' }
-            ]}
-            height={300}
-          />
+          {reportsData.userGrowthData.length > 0 ? (
+            <CustomLineChart
+              data={reportsData.userGrowthData}
+              xDataKey="name"
+              lines={[
+                { dataKey: 'users', name: 'Users', color: '#ff6f61' }
+              ]}
+              height={300}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">
+              No user growth data available for this period
+            </div>
+          )}
         </Chart>
       </div>
 
@@ -167,24 +255,36 @@ const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Category Distribution */}
         <Chart title="Service Category Popularity">
-          <CustomPieChart
-            data={categoryData}
-            height={300}
-            colors={categoryData.map(item => item.color)}
-          />
+          {reportsData.categoryData.length > 0 ? (
+            <CustomPieChart
+              data={reportsData.categoryData}
+              height={300}
+              colors={reportsData.categoryData.map(item => item.color)}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">
+              No category data available for this period
+            </div>
+          )}
         </Chart>
 
         {/* Monthly Active Users */}
         <Chart title="Monthly Active Users & Sessions">
-          <CustomBarChart
-            data={monthlyActiveUsers}
-            xDataKey="name"
-            bars={[
-              { dataKey: 'users', name: 'Active Users', color: '#004d4d' },
-              { dataKey: 'sessions', name: 'Sessions', color: '#ffd700' }
-            ]}
-            height={300}
-          />
+          {reportsData.monthlyActiveUsers.length > 0 ? (
+            <CustomBarChart
+              data={reportsData.monthlyActiveUsers}
+              xDataKey="name"
+              bars={[
+                { dataKey: 'users', name: 'Active Users', color: '#004d4d' },
+                { dataKey: 'sessions', name: 'Sessions', color: '#ffd700' }
+              ]}
+              height={300}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">
+              No active users data available for this period
+            </div>
+          )}
         </Chart>
       </div>
 
@@ -202,40 +302,53 @@ const Reports = () => {
               </tr>
             </thead>
             <tbody>
-              {expertPerformanceData.map((expert, index) => (
-                <tr key={expert.name} className="border-b border-gray-100">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-primary-900 rounded-full flex items-center justify-center">
-                        <span className="text-white font-medium text-sm">
-                          #{index + 1}
-                        </span>
-                      </div>
-                      <div className="font-medium text-gray-900">{expert.name}</div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="font-semibold text-gray-900">{expert.sessions}</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="font-semibold text-green-600">{formatCurrency(expert.revenue)}</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center">
-                      <span className="font-medium text-gold-600">{expert.rating}</span>
-                      <span className="text-gray-400 ml-1">/ 5.0</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-primary-900 h-2 rounded-full" 
-                        style={{ width: `${(expert.sessions / 250) * 100}%` }}
-                      ></div>
-                    </div>
+              {reportsData.expertPerformance.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-gray-500">
+                    No expert performance data available for this period
                   </td>
                 </tr>
-              ))}
+              ) : (
+                reportsData.expertPerformance.map((expert, index) => {
+                  const maxSessions = reportsData.expertPerformance.length > 0 
+                    ? Math.max(...reportsData.expertPerformance.map(e => e.sessions))
+                    : expert.sessions;
+                  return (
+                    <tr key={expert.name || index} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-primary-900 rounded-full flex items-center justify-center">
+                            <span className="text-white font-medium text-sm">
+                              #{index + 1}
+                            </span>
+                          </div>
+                          <div className="font-medium text-gray-900">{expert.name}</div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-gray-900">{expert.sessions}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-green-600">{formatCurrency(expert.revenue)}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center">
+                          <span className="font-medium text-gold-600">{expert.rating.toFixed(1)}</span>
+                          <span className="text-gray-400 ml-1">/ 5.0</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-primary-900 h-2 rounded-full" 
+                            style={{ width: `${maxSessions > 0 ? (expert.sessions / maxSessions) * 100 : 0}%` }}
+                          ></div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -245,43 +358,47 @@ const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card title="Customer Satisfaction">
           <div className="mt-4 text-center">
-            <div className="text-4xl font-bold text-primary-900 mb-2">4.8</div>
+            <div className="text-4xl font-bold text-primary-900 mb-2">{reportsData.satisfaction.average}</div>
             <div className="text-gray-600 mb-4">out of 5.0</div>
             <div className="space-y-2">
-              {[5, 4, 3, 2, 1].map((rating) => (
-                <div key={rating} className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600 w-4">{rating}</span>
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-gold-500 h-2 rounded-full" 
-                      style={{ width: rating === 5 ? '70%' : rating === 4 ? '25%' : '5%' }}
-                    ></div>
+              {reportsData.satisfaction.distribution.length > 0 ? (
+                reportsData.satisfaction.distribution.map((item) => (
+                  <div key={item.rating} className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600 w-4">{item.rating}</span>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-gold-500 h-2 rounded-full" 
+                        style={{ width: item.percentage }}
+                      ></div>
+                    </div>
+                    <span className="text-sm text-gray-500 w-8">
+                      {item.percentage}
+                    </span>
                   </div>
-                  <span className="text-sm text-gray-500 w-8">
-                    {rating === 5 ? '70%' : rating === 4 ? '25%' : '5%'}
-                  </span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm py-4">No satisfaction data available</p>
+              )}
             </div>
           </div>
         </Card>
 
         <Card title="Booking Success Rate">
           <div className="mt-4 text-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">94.5%</div>
+            <div className="text-4xl font-bold text-green-600 mb-2">{reportsData.bookingStats.successRate}%</div>
             <div className="text-gray-600 mb-4">Success Rate</div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Successful Bookings</span>
-                <span className="font-medium">1,342</span>
+                <span className="font-medium">{reportsData.bookingStats.successful.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>Cancelled Bookings</span>
-                <span className="font-medium text-red-600">78</span>
+                <span className="font-medium text-red-600">{reportsData.bookingStats.cancelled.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>No-shows</span>
-                <span className="font-medium text-yellow-600">23</span>
+                <span className="font-medium text-yellow-600">{reportsData.bookingStats.noShows.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -291,19 +408,27 @@ const Reports = () => {
           <div className="mt-4 space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">New Users</span>
-              <span className="font-semibold text-green-600">+127 this week</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Expert Applications</span>
-              <span className="font-semibold text-blue-600">+12 pending</span>
+              <span className="font-semibold text-green-600">
+                +{reportsData.platformGrowth.newUsers} in this period
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Revenue Growth</span>
-              <span className="font-semibold text-gold-600">+15% MoM</span>
+              <span className={`font-semibold ${reportsData.platformGrowth.revenueGrowth >= 0 ? 'text-gold-600' : 'text-red-600'}`}>
+                {reportsData.platformGrowth.revenueGrowth >= 0 ? '+' : ''}{reportsData.platformGrowth.revenueGrowth}%
+              </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Market Share</span>
-              <span className="font-semibold text-coral-400">23% in wellness</span>
+              <span className="text-gray-600">User Growth</span>
+              <span className={`font-semibold ${reportsData.growth.users >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {reportsData.growth.users >= 0 ? '+' : ''}{reportsData.growth.users}%
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Booking Growth</span>
+              <span className={`font-semibold ${reportsData.growth.bookings >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                {reportsData.growth.bookings >= 0 ? '+' : ''}{reportsData.growth.bookings}%
+              </span>
             </div>
           </div>
         </Card>

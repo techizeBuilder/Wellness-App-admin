@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Download, CreditCard, Banknote, Eye, RefreshCw, DollarSign, Edit3, Loader2 } from 'lucide-react';
+import { Search, Download, CreditCard, Banknote, Eye, RefreshCw, DollarSign, Edit3, Loader2, Calendar, X } from 'lucide-react';
 import Card from '../components/Card';
 import Chart, { CustomLineChart } from '../components/Chart';
 import { formatDate, formatCurrency, getStatusColor } from '../utils/dummyData';
 import { apiGet, apiPatch } from '../utils/api';
+import config from '../utils/config';
 
 const Payments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [specializationFilter, setSpecializationFilter] = useState('All');
+  const [specializations, setSpecializations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -30,14 +35,52 @@ const Payments = () => {
   });
   const paymentsPerPage = 20;
 
+  // Fetch unique specializations
+  const fetchSpecializations = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const apiUrl = config.getApiUrl();
+      
+      // Fetch all experts without pagination to get unique specializations
+      const response = await fetch(`${apiUrl}/api/admin/experts?limit=1000`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch specializations');
+      }
+
+      const data = await response.json();
+      const experts = data.data?.experts || data.experts || [];
+      
+      // Extract unique specializations
+      const uniqueSpecializations = [...new Set(
+        experts
+          .map(expert => expert.specialization)
+          .filter(spec => spec && spec.trim() !== '')
+      )].sort();
+      
+      setSpecializations(uniqueSpecializations);
+    } catch (error) {
+      console.error('Error fetching specializations:', error);
+    }
+  };
+
   useEffect(() => {
     // Reset to page 1 when filter or search changes
     setCurrentPage(1);
-  }, [statusFilter, searchTerm]);
+  }, [statusFilter, searchTerm, startDate, endDate, specializationFilter]);
 
   useEffect(() => {
     fetchPayments();
-  }, [currentPage, statusFilter, searchTerm]);
+  }, [currentPage, statusFilter, searchTerm, startDate, endDate, specializationFilter]);
+
+  useEffect(() => {
+    fetchSpecializations();
+  }, []);
 
   const fetchPayments = async () => {
     try {
@@ -53,6 +96,18 @@ const Payments = () => {
       
       if (searchTerm) {
         params.append('search', searchTerm);
+      }
+
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+
+      if (endDate) {
+        params.append('endDate', endDate);
+      }
+
+      if (specializationFilter !== 'All') {
+        params.append('specialization', specializationFilter);
       }
 
       const response = await apiGet(`/api/admin/payments?${params.toString()}`);
@@ -520,28 +575,96 @@ const Payments = () => {
       {/* Filters */}
       <Card>
         <div className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                placeholder="Search payments..."
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search payments..."
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 w-full"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+              
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="All">All Status</option>
+                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
+                <option value="Refunded">Refunded</option>
+              </select>
+
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={specializationFilter}
+                onChange={(e) => {
+                  setSpecializationFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="All">All Specializations</option>
+                {specializations.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
+                  </option>
+                ))}
+              </select>
             </div>
-            
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All Status</option>
-              <option value="Completed">Completed</option>
-              <option value="Pending">Pending</option>
-              <option value="Refunded">Refunded</option>
-            </select>
+
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <div className="flex items-center space-x-2 flex-1">
+                <Calendar className="text-gray-400" size={16} />
+                <input
+                  type="date"
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 flex-1"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Start Date"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 flex-1"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="End Date"
+                />
+              </div>
+
+              {(searchTerm || statusFilter !== 'All' || startDate || endDate || specializationFilter !== 'All') && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('All');
+                    setStartDate('');
+                    setEndDate('');
+                    setSpecializationFilter('All');
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center space-x-2"
+                >
+                  <X size={16} />
+                  <span>Clear Filters</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </Card>

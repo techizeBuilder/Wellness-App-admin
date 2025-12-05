@@ -16,7 +16,8 @@ import {
   IndianRupee,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 
 const Experts = () => {
@@ -57,6 +58,8 @@ const Experts = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [verificationFilter, setVerificationFilter] = useState('all');
   const [specializationFilter, setSpecializationFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [specializations, setSpecializations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -120,6 +123,14 @@ const Experts = () => {
       
       if (specializationFilter && specializationFilter !== 'all') {
         queryParams.append('specialty', specializationFilter);
+      }
+
+      if (startDate) {
+        queryParams.append('startDate', startDate);
+      }
+
+      if (endDate) {
+        queryParams.append('endDate', endDate);
       }
       
       const response = await fetch(`http://localhost:5000/api/admin/experts?${queryParams}`, {
@@ -204,13 +215,28 @@ const Experts = () => {
   };
 
   useEffect(() => {
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, verificationFilter, specializationFilter, startDate, endDate]);
+
+  useEffect(() => {
     fetchExperts();
     fetchStats();
-  }, [currentPage, searchTerm, statusFilter, verificationFilter, specializationFilter]);
+  }, [currentPage, searchTerm, statusFilter, verificationFilter, specializationFilter, startDate, endDate]);
 
   useEffect(() => {
     fetchSpecializations();
   }, []);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setVerificationFilter('all');
+    setSpecializationFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
 
   // Action handlers
   const handleViewExpert = async (expert) => {
@@ -471,76 +497,105 @@ const Experts = () => {
       </div>
 
       {/* Search and Filters */}
-      <Card className="p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                placeholder="Search experts..."
-                value={searchTerm}
+      <Card className="overflow-hidden">
+        <div className="p-4">
+          <div className="flex flex-col space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, phone, or specialization..."
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+              
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={statusFilter}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
+                  setStatusFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={verificationFilter}
+                onChange={(e) => {
+                  setVerificationFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="all">All Verification</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="under_review">Under Review</option>
+                <option value="rejected">Rejected</option>
+              </select>
+
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={specializationFilter}
+                onChange={(e) => {
+                  setSpecializationFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="all">All Specializations</option>
+                {specializations.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Verification</label>
-            <select
-              value={verificationFilter}
-              onChange={(e) => {
-                setVerificationFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Verification</option>
-              <option value="approved">Approved</option>
-              <option value="pending">Pending</option>
-              <option value="under_review">Under Review</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
-            <select
-              value={specializationFilter}
-              onChange={(e) => {
-                setSpecializationFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Specializations</option>
-              {specializations.map((spec) => (
-                <option key={spec} value={spec}>
-                  {spec}
-                </option>
-              ))}
-            </select>
+
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <div className="flex items-center space-x-2 flex-1">
+                <Calendar className="text-gray-400" size={16} />
+                <input
+                  type="date"
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Start Date"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="End Date"
+                />
+              </div>
+
+              {(searchTerm || statusFilter !== 'all' || verificationFilter !== 'all' || specializationFilter !== 'all' || startDate || endDate) && (
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center space-x-2"
+                >
+                  <X size={16} />
+                  <span>Clear Filters</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </Card>

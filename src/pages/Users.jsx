@@ -3,7 +3,7 @@ import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import config from '../utils/config';
 import { apiGet, apiPut, apiDelete } from '../utils/api';
-import { Users as UsersIcon, UserCheck, UserX, Plus, Eye, Edit, Trash2, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users as UsersIcon, UserCheck, UserX, Plus, Eye, Edit, Trash2, MoreHorizontal, ChevronLeft, ChevronRight, Search, Calendar, X } from 'lucide-react';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -20,6 +20,12 @@ const Users = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const usersPerPage = 20;
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
@@ -68,6 +74,22 @@ const Users = () => {
         page: currentPage,
         limit: usersPerPage
       });
+
+      if (searchTerm) {
+        queryParams.append('search', searchTerm);
+      }
+
+      if (statusFilter !== 'All') {
+        queryParams.append('status', statusFilter);
+      }
+
+      if (startDate) {
+        queryParams.append('startDate', startDate);
+      }
+
+      if (endDate) {
+        queryParams.append('endDate', endDate);
+      }
       
       const response = await fetch(`http://localhost:5000/api/admin/users?${queryParams}`, {
         headers: {
@@ -123,9 +145,22 @@ const Users = () => {
   };
 
   useEffect(() => {
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, startDate, endDate]);
+
+  useEffect(() => {
     fetchUsers();
     fetchStats();
-  }, [currentPage]);
+  }, [currentPage, searchTerm, statusFilter, startDate, endDate]);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('All');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
 
   // Action handlers
   const handleViewUser = (user) => {
@@ -314,6 +349,67 @@ const Users = () => {
           </div>
         </Card>
       </div>
+
+      {/* Filters */}
+      <Card className="overflow-hidden">
+        <div className="p-4">
+          <div className="flex flex-col space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or phone..."
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="All">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <div className="flex items-center space-x-2 flex-1">
+                <Calendar className="text-gray-400" size={16} />
+                <input
+                  type="date"
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  placeholder="Start Date"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  placeholder="End Date"
+                />
+              </div>
+
+              {(searchTerm || statusFilter !== 'All' || startDate || endDate) && (
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center space-x-2"
+                >
+                  <X size={16} />
+                  <span>Clear Filters</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Users Table */}
       <Card className="overflow-hidden">
