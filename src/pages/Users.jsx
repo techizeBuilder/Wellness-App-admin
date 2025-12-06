@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import config from '../utils/config';
@@ -91,7 +91,8 @@ const Users = () => {
         queryParams.append('endDate', endDate);
       }
       
-      const response = await fetch(`http://localhost:5000/api/admin/users?${queryParams}`, {
+      const apiUrl = config.getApiUrl();
+      const response = await fetch(`${apiUrl}/api/admin/users?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -189,7 +190,8 @@ const Users = () => {
     
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/admin/users/${selectedUser.id}`, {
+      const apiUrl = config.getApiUrl();
+      const response = await fetch(`${apiUrl}/api/admin/users/${selectedUser.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -216,8 +218,9 @@ const Users = () => {
   const toggleUserStatus = async (user) => {
     try {
       const token = localStorage.getItem('adminToken');
+      const apiUrl = config.getApiUrl();
       
-      const response = await fetch(`http://localhost:5000/api/admin/users/${user.id}/toggle-status`, {
+      const response = await fetch(`${apiUrl}/api/admin/users/${user.id}/toggle-status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -257,8 +260,9 @@ const Users = () => {
     try {
       setEditLoading(true);
       const token = localStorage.getItem('adminToken');
+      const apiUrl = config.getApiUrl();
       
-      const response = await fetch(`http://localhost:5000/api/admin/users/${selectedUser.id}`, {
+      const response = await fetch(`${apiUrl}/api/admin/users/${selectedUser.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

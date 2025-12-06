@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import config from '../utils/config';
@@ -133,7 +133,8 @@ const Experts = () => {
         queryParams.append('endDate', endDate);
       }
       
-      const response = await fetch(`http://localhost:5000/api/admin/experts?${queryParams}`, {
+      const apiUrl = config.getApiUrl();
+      const response = await fetch(`${apiUrl}/api/admin/experts?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -186,7 +187,8 @@ const Experts = () => {
       const token = localStorage.getItem('adminToken');
       
       // Fetch all experts without pagination to get unique specializations
-      const response = await fetch('http://localhost:5000/api/admin/experts?limit=1000', {
+      const apiUrl = config.getApiUrl();
+      const response = await fetch(`${apiUrl}/api/admin/experts?limit=1000`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -243,7 +245,8 @@ const Experts = () => {
     try {
       // Fetch full expert details including bank account
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/admin/experts/${expert.id || expert._id}`, {
+      const apiUrl = config.getApiUrl();
+      const response = await fetch(`${apiUrl}/api/admin/experts/${expert.id || expert._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -291,7 +294,8 @@ const Experts = () => {
     
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5000/api/admin/experts/${selectedExpert.id || selectedExpert._id}`, {
+      const apiUrl = config.getApiUrl();
+      const response = await fetch(`${apiUrl}/api/admin/experts/${selectedExpert.id || selectedExpert._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -318,8 +322,9 @@ const Experts = () => {
   const toggleExpertStatus = async (expert) => {
     try {
       const token = localStorage.getItem('adminToken');
+      const apiUrl = config.getApiUrl();
       
-      const response = await fetch(`http://localhost:5000/api/admin/experts/${expert.id || expert._id}/toggle-status`, {
+      const response = await fetch(`${apiUrl}/api/admin/experts/${expert.id || expert._id}/toggle-status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -359,8 +364,9 @@ const Experts = () => {
     try {
       setEditLoading(true);
       const token = localStorage.getItem('adminToken');
+      const apiUrl = config.getApiUrl();
       
-      const response = await fetch(`http://localhost:5000/api/admin/experts/${selectedExpert.id || selectedExpert._id}`, {
+      const response = await fetch(`${apiUrl}/api/admin/experts/${selectedExpert.id || selectedExpert._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
