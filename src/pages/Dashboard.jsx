@@ -43,7 +43,7 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await apiGet('/api/admin/dashboard');
-      
+
       if (response.success && response.data) {
         setDashboardData(response.data);
       } else {
@@ -75,7 +75,354 @@ const Dashboard = () => {
       .toUpperCase()
       .substring(0, 2);
   };
+  const generateReport = () => {
+    try {
+      const reportDate = new Date().toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
+      const reportHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zenovia Dashboard Report - ${reportDate}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      line-height: 1.6;
+      color: #1f2937;
+      padding: 40px 20px;
+      background: #f9fafb;
+    }
+    .container { 
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .header { 
+      border-bottom: 3px solid #004d4d;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .header h1 { 
+      color: #004d4d;
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    .header .meta { 
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .section { 
+      margin: 30px 0;
+    }
+    .section h2 { 
+      color: #004d4d;
+      font-size: 24px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .stats-grid { 
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .stat-card { 
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #004d4d;
+    }
+    .stat-card h3 { 
+      color: #6b7280;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .stat-card .value { 
+      font-size: 32px;
+      font-weight: 700;
+      color: #004d4d;
+      margin-bottom: 8px;
+    }
+    .stat-card .change { 
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .positive { color: #10b981; }
+    .negative { color: #ef4444; }
+    table { 
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th { 
+      background: #004d4d;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    td { 
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+    }
+    tr:hover { background: #f9fafb; }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .metric-box {
+      background: #fef3c7;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .metric-box .label {
+      font-size: 12px;
+      color: #92400e;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .metric-box .value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #004d4d;
+    }
+    .footer { 
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 2px solid #e5e7eb;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    @media print {
+      body { padding: 0; background: white; }
+      .container { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌿 Zenovia Wellness Dashboard Report</h1>
+      <div class="meta">
+        <p><strong>Generated:</strong> ${reportDate}</p>
+        <p><strong>Report Type:</strong> Comprehensive Dashboard Analytics</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📊 Key Performance Indicators</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>Total Users</h3>
+          <div class="value">${dashboardData.stats.totalUsers.toLocaleString()}</div>
+          <div class="change ${dashboardData.growth.users >= 0 ? 'positive' : 'negative'}">
+            ${dashboardData.growth.users >= 0 ? '↑' : '↓'} ${Math.abs(dashboardData.growth.users)}% from last month
+          </div>
+        </div>
+        <div class="stat-card">
+          <h3>Total Experts</h3>
+          <div class="value">${dashboardData.stats.totalExperts.toLocaleString()}</div>
+          <div class="change ${dashboardData.growth.experts >= 0 ? 'positive' : 'negative'}">
+            ${dashboardData.growth.experts >= 0 ? '↑' : '↓'} ${Math.abs(dashboardData.growth.experts)}% from last month
+          </div>
+        </div>
+        <div class="stat-card">
+          <h3>Active Bookings</h3>
+          <div class="value">${dashboardData.stats.activeBookings.toLocaleString()}</div>
+          <div class="change ${dashboardData.growth.bookings >= 0 ? 'positive' : 'negative'}">
+            ${dashboardData.growth.bookings >= 0 ? '↑' : '↓'} ${Math.abs(dashboardData.growth.bookings)}% from last month
+          </div>
+        </div>
+        <div class="stat-card">
+          <h3>Monthly Revenue</h3>
+          <div class="value">${formatCurrency(dashboardData.stats.monthlyRevenue)}</div>
+          <div class="change ${dashboardData.growth.revenue >= 0 ? 'positive' : 'negative'}">
+            ${dashboardData.growth.revenue >= 0 ? '↑' : '↓'} ${Math.abs(dashboardData.growth.revenue)}% from last month
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>💡 Business Metrics</h2>
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div class="label">Conversion Rate</div>
+          <div class="value">${dashboardData.metrics.conversionRate}%</div>
+        </div>
+        <div class="metric-box">
+          <div class="label">Avg Session Value</div>
+          <div class="value">${formatCurrency(dashboardData.metrics.avgSessionValue)}</div>
+        </div>
+        <div class="metric-box">
+          <div class="label">Customer Satisfaction</div>
+          <div class="value">${dashboardData.metrics.customerSatisfaction}</div>
+        </div>
+      </div>
+    </div>
+
+    ${dashboardData.recentBookings.length > 0 ? `
+    <div class="section">
+      <h2>📅 Recent Bookings</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Booking ID</th>
+            <th>User</th>
+            <th>Expert</th>
+            <th>Service</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dashboardData.recentBookings.map(booking => `
+            <tr>
+              <td><strong>${booking.id}</strong></td>
+              <td>${booking.user}</td>
+              <td>${booking.expert}</td>
+              <td>${booking.service}</td>
+              <td>${formatDate(booking.date)}<br><small>${booking.time}</small></td>
+              <td><span style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background: ${booking.status === 'Confirmed' ? '#d1fae5' : booking.status === 'Pending' ? '#fef3c7' : '#fee2e2'}; color: ${booking.status === 'Confirmed' ? '#065f46' : booking.status === 'Pending' ? '#92400e' : '#991b1b'}">${booking.status}</span></td>
+              <td><strong>${formatCurrency(booking.amount)}</strong></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    ${dashboardData.topExperts.length > 0 ? `
+    <div class="section">
+      <h2>⭐ Top Performing Experts</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Expert Name</th>
+            <th>Sessions</th>
+            <th>Rating</th>
+            <th>Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dashboardData.topExperts.map((expert, index) => `
+            <tr>
+              <td><strong>#${index + 1}</strong></td>
+              <td>${expert.name || 'Unknown Expert'}</td>
+              <td>${expert.sessions || 0}</td>
+              <td>${expert.rating ? expert.rating.toFixed(1) + ' ⭐' : 'N/A'}</td>
+              <td><strong>${formatCurrency(expert.revenue || 0)}</strong></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    ${dashboardData.categoryData.length > 0 ? `
+    <div class="section">
+      <h2>📈 Top Categories Performance</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Performance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dashboardData.categoryData.slice(0, 5).map(category => `
+            <tr>
+              <td>${category.name}</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="background: #e5e7eb; height: 20px; flex: 1; border-radius: 10px; overflow: hidden;">
+                    <div style="background: ${category.color}; height: 100%; width: ${category.value}%; transition: width 0.3s;"></div>
+                  </div>
+                  <strong>${category.value}%</strong>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    ${dashboardData.revenueData.length > 0 ? `
+    <div class="section">
+      <h2>💰 Monthly Revenue Trend</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Revenue</th>
+            <th>Bookings</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dashboardData.revenueData.map(item => `
+            <tr>
+              <td>${item.name}</td>
+              <td><strong>${formatCurrency(item.revenue || 0)}</strong></td>
+              <td>${item.bookings || 0}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    <div class="footer">
+      <p><strong>Zenovia Wellness Platform</strong> - Admin Dashboard Report</p>
+      <p>This report is confidential and intended for internal use only.</p>
+      <p>© ${new Date().getFullYear()} Zenovia. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+      `;
+
+      // Create blob and download
+      const blob = new Blob([reportHTML], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Zenovia_Dashboard_Report_${new Date().toISOString().split('T')[0]}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Report generated successfully! Check your downloads.');
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast.error('Failed to generate report. Please try again.');
+    }
+  };
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -96,7 +443,7 @@ const Dashboard = () => {
           <p className="text-gray-600 mt-1">Welcome back! Here's what's happening with Zenovia today.</p>
         </div>
         <div className="mt-3 sm:mt-0 flex space-x-2">
-          <button 
+          <button
             onClick={fetchDashboardData}
             className="btn-secondary flex items-center space-x-2"
             disabled={loading}
@@ -104,7 +451,10 @@ const Dashboard = () => {
             <RefreshCw className={loading ? 'animate-spin' : ''} size={16} />
             <span>Refresh</span>
           </button>
-          <button className="btn-primary">
+          <button
+            onClick={generateReport}
+            className="btn-primary"
+          >
             Generate Report
           </button>
         </div>
@@ -197,7 +547,7 @@ const Dashboard = () => {
                 </div>
                 <TrendingUp className="text-green-500" size={24} />
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-gold-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Avg Session Value</p>
@@ -205,7 +555,7 @@ const Dashboard = () => {
                 </div>
                 <TrendingUp className="text-green-500" size={24} />
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-coral-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Customer Satisfaction</p>
@@ -284,7 +634,7 @@ const Dashboard = () => {
             </tbody>
           </table>
         </div>
-        
+
         <div className="mt-4 flex justify-center">
           <button
             onClick={() => navigate('/bookings')}
@@ -305,7 +655,7 @@ const Dashboard = () => {
               dashboardData.categoryData.slice(0, 3).map((category, index) => (
                 <div key={category.name || index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div 
+                    <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: category.color }}
                     ></div>

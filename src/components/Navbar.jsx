@@ -9,6 +9,8 @@ import {
   Menu
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiGet } from '../utils/api';
+import config from '../utils/config';
 
 const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -19,6 +21,11 @@ const Navbar = () => {
     { id: 3, message: 'Booking cancelled', time: '10 min ago', unread: false },
   ]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [adminProfile, setAdminProfile] = useState({
+    name: 'Admin User',
+    email: 'admin@zenovia.com',
+    profileImage: null
+  });
   const navigate = useNavigate();
   const profileRef = useRef(null);
   const notificationRef = useRef(null);
@@ -26,7 +33,33 @@ const Navbar = () => {
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
+  // Fetch admin profile
+  const fetchAdminProfile = async () => {
+    try {
+      const response = await apiGet('/api/admin/profile');
+      if (response.success && response.data?.admin) {
+        const admin = response.data.admin;
+        setAdminProfile({
+          name: admin.name || 'Admin User',
+          email: admin.email || 'admin@zenovia.com',
+          profileImage: admin.profileImage || null
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching admin profile:', error);
+    }
+  };
+
   useEffect(() => {
+    fetchAdminProfile();
+
+    // Listen for profile updates
+    const handleProfileUpdate = () => {
+      fetchAdminProfile();
+    };
+
+    window.addEventListener('adminProfileUpdated', handleProfileUpdate);
+
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
@@ -45,7 +78,9 @@ const Navbar = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
+
     return () => {
+      window.removeEventListener('adminProfileUpdated', handleProfileUpdate);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
@@ -145,9 +180,8 @@ const Navbar = () => {
                       notifications.map((notification) => (
                         <div
                           key={notification.id}
-                          className={`p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${
-                            notification.unread ? 'bg-blue-50 border-l-4 border-l-coral-400' : ''
-                          }`}
+                          className={`p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${notification.unread ? 'bg-blue-50 border-l-4 border-l-coral-400' : ''
+                            }`}
                         >
                           <p className="text-sm text-gray-900 font-medium">{notification.message}</p>
                           <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
@@ -178,16 +212,26 @@ const Navbar = () => {
               aria-label="User menu"
               aria-expanded={isProfileOpen}
             >
-              <div className="w-8 h-8 bg-primary-900 rounded-full flex items-center justify-center">
-                <User className="text-white" size={16} />
-              </div>
+              {adminProfile.profileImage ? (
+                <img
+                  src={`${config.getApiUrl()}/uploads/profiles/${adminProfile.profileImage}`}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-primary-900 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {adminProfile.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
               <div className="text-left hidden sm:block">
-                <div className="text-sm font-medium">Admin User</div>
-                <div className="text-xs text-gray-500">admin@zenovia.com</div>
+                <div className="text-sm font-medium">{adminProfile.name}</div>
+                <div className="text-xs text-gray-500">{adminProfile.email}</div>
               </div>
-              <ChevronDown 
-                size={16} 
-                className={`transform transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''} hidden sm:block`} 
+              <ChevronDown
+                size={16}
+                className={`transform transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''} hidden sm:block`}
               />
             </button>
 
@@ -197,8 +241,8 @@ const Navbar = () => {
                 <div className="fixed inset-0 z-10" aria-hidden="true" />
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                   <div className="p-3 border-b border-gray-200">
-                    <div className="text-sm font-medium text-gray-900">Admin User</div>
-                    <div className="text-xs text-gray-500">admin@zenovia.com</div>
+                    <div className="text-sm font-medium text-gray-900">{adminProfile.name}</div>
+                    <div className="text-xs text-gray-500">{adminProfile.email}</div>
                   </div>
                   <div className="py-2">
                     <button

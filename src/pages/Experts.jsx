@@ -3,13 +3,13 @@ import Card from '../components/Card';
 import toast from 'react-hot-toast';
 import config from '../utils/config';
 import { apiGet } from '../utils/api';
-import { 
-  Users as UsersIcon, 
-  UserCheck, 
-  UserX, 
-  Eye, 
-  Edit, 
-  Trash2, 
+import {
+  Users as UsersIcon,
+  UserCheck,
+  UserX,
+  Eye,
+  Edit,
+  Trash2,
   Search,
   Star,
   Clock,
@@ -29,7 +29,7 @@ const Experts = () => {
     inactiveExperts: 0,
     averageRating: 0
   });
-  
+
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -38,7 +38,7 @@ const Experts = () => {
   const [selectedExpert, setSelectedExpert] = useState(null);
   const [expertPlans, setExpertPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
-  
+
   // Form states
   const [editFormData, setEditFormData] = useState({
     firstName: '',
@@ -52,7 +52,7 @@ const Experts = () => {
     verificationStatus: 'approved'
   });
   const [editLoading, setEditLoading] = useState(false);
-  
+
   // Filter and search states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -69,7 +69,7 @@ const Experts = () => {
   // Helper function to get profile image URL
   const getProfileImageUrl = (expert) => {
     if (!expert) return null;
-    
+
     // Check if profileImage exists
     if (expert.profileImage) {
       // If it's already a full URL, return it
@@ -80,7 +80,7 @@ const Experts = () => {
       const apiUrl = config.getApiUrl();
       return `${apiUrl}/uploads/profiles/${expert.profileImage}`;
     }
-    
+
     return null;
   };
 
@@ -112,15 +112,24 @@ const Experts = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      
+
       const queryParams = new URLSearchParams({
         page: currentPage,
-        limit: expertsPerPage,
-        search: searchTerm,
-        status: statusFilter,
-        verificationStatus: verificationFilter
+        limit: expertsPerPage
       });
-      
+
+      if (searchTerm) {
+        queryParams.append('search', searchTerm);
+      }
+
+      if (statusFilter && statusFilter !== 'all') {
+        queryParams.append('status', statusFilter);
+      }
+
+      if (verificationFilter && verificationFilter !== 'all') {
+        queryParams.append('verificationStatus', verificationFilter);
+      }
+
       if (specializationFilter && specializationFilter !== 'all') {
         queryParams.append('specialty', specializationFilter);
       }
@@ -132,7 +141,7 @@ const Experts = () => {
       if (endDate) {
         queryParams.append('endDate', endDate);
       }
-      
+
       const apiUrl = config.getApiUrl();
       const response = await fetch(`${apiUrl}/api/admin/experts?${queryParams}`, {
         headers: {
@@ -149,11 +158,11 @@ const Experts = () => {
       const data = await response.json();
       const experts = data.data?.experts || data.experts || [];
       const pagination = data.data?.pagination || {};
-      
+
       setExperts(experts);
       setTotalPages(pagination.pages || pagination.totalPages || 1);
       setTotalExperts(pagination.total || experts.length);
-      
+
       if (experts && experts.length > 0) {
         toast.success(`Loaded ${experts.length} experts`);
       }
@@ -169,7 +178,7 @@ const Experts = () => {
   const fetchStats = async () => {
     try {
       const response = await apiGet('/api/admin/experts/stats');
-      
+
       if (response.success && response.data?.stats) {
         setStats(response.data.stats);
       } else {
@@ -185,7 +194,7 @@ const Experts = () => {
   const fetchSpecializations = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      
+
       // Fetch all experts without pagination to get unique specializations
       const apiUrl = config.getApiUrl();
       const response = await fetch(`${apiUrl}/api/admin/experts?limit=1000`, {
@@ -201,14 +210,14 @@ const Experts = () => {
 
       const data = await response.json();
       const experts = data.data?.experts || data.experts || [];
-      
+
       // Extract unique specializations
       const uniqueSpecializations = [...new Set(
         experts
           .map(expert => expert.specialization)
           .filter(spec => spec && spec.trim() !== '')
       )].sort();
-      
+
       setSpecializations(uniqueSpecializations);
     } catch (error) {
       console.error('Error fetching specializations:', error);
@@ -291,7 +300,7 @@ const Experts = () => {
 
   const confirmDeleteExpert = async () => {
     if (!selectedExpert) return;
-    
+
     try {
       const token = localStorage.getItem('adminToken');
       const apiUrl = config.getApiUrl();
@@ -323,7 +332,7 @@ const Experts = () => {
     try {
       const token = localStorage.getItem('adminToken');
       const apiUrl = config.getApiUrl();
-      
+
       const response = await fetch(`${apiUrl}/api/admin/experts/${expert.id || expert._id}/toggle-status`, {
         method: 'PUT',
         headers: {
@@ -365,7 +374,7 @@ const Experts = () => {
       setEditLoading(true);
       const token = localStorage.getItem('adminToken');
       const apiUrl = config.getApiUrl();
-      
+
       const response = await fetch(`${apiUrl}/api/admin/experts/${selectedExpert.id || selectedExpert._id}`, {
         method: 'PUT',
         headers: {
@@ -424,15 +433,15 @@ const Experts = () => {
       setLoadingPlans(true);
       setSelectedExpert(expert);
       setShowPlansModal(true);
-      
+
       const expertId = expert.id || expert._id;
       const apiUrl = config.getApiUrl();
       const response = await fetch(`${apiUrl}/api/plans/expert/${expertId}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch plans');
       }
-      
+
       const data = await response.json();
       setExpertPlans(data.data?.plans || []);
     } catch (error) {
@@ -520,7 +529,7 @@ const Experts = () => {
                   }}
                 />
               </div>
-              
+
               <select
                 className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={statusFilter}
@@ -697,11 +706,10 @@ const Experts = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            expert.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${expert.status === 'active'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
-                          }`}>
+                            }`}>
                             {expert.status ? expert.status.charAt(0).toUpperCase() + expert.status.slice(1) : 'Active'}
                           </span>
                         </td>
@@ -736,11 +744,10 @@ const Experts = () => {
                             </button>
                             <button
                               onClick={() => toggleExpertStatus(expert)}
-                              className={`p-1 rounded-full ${
-                                expert.status === 'active' 
-                                  ? 'text-orange-600 hover:text-orange-900 hover:bg-orange-100' 
+                              className={`p-1 rounded-full ${expert.status === 'active'
+                                  ? 'text-orange-600 hover:text-orange-900 hover:bg-orange-100'
                                   : 'text-green-600 hover:text-green-900 hover:bg-green-100'
-                              }`}
+                                }`}
                               title={expert.status === 'active' ? 'Deactivate Expert' : 'Activate Expert'}
                             >
                               {expert.status === 'active' ? <UserX size={16} /> : <UserCheck size={16} />}
@@ -760,7 +767,7 @@ const Experts = () => {
                 </table>
               </div>
             )}
-            
+
             {/* Pagination */}
             {!loading && totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
@@ -848,11 +855,10 @@ const Experts = () => {
               </div>
               <div>
                 <label className="font-medium text-gray-700">Status:</label>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  selectedExpert.status === 'active' 
-                    ? 'bg-green-100 text-green-800' 
+                <span className={`px-2 py-1 text-xs rounded-full ${selectedExpert.status === 'active'
+                    ? 'bg-green-100 text-green-800'
                     : 'bg-red-100 text-red-800'
-                }`}>
+                  }`}>
                   {selectedExpert.status}
                 </span>
               </div>
@@ -871,9 +877,9 @@ const Experts = () => {
                 <p className="text-gray-900">{new Date(selectedExpert.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
-            
+
             {/* Bank Account Details Section */}
-              {selectedExpert.bankAccount && (
+            {selectedExpert.bankAccount && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h4 className="text-md font-semibold text-gray-800 mb-4 flex items-center">
                   <IndianRupee size={18} className="mr-2" />
@@ -908,28 +914,27 @@ const Experts = () => {
                   </div>
                   <div>
                     <label className="font-medium text-gray-700">Status:</label>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      selectedExpert.bankAccount.isActive 
-                        ? 'bg-green-100 text-green-800' 
+                    <span className={`px-2 py-1 text-xs rounded-full ${selectedExpert.bankAccount.isActive
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
-                    }`}>
+                      }`}>
                       {selectedExpert.bankAccount.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                 </div>
               </div>
             )}
-            
+
             {!selectedExpert.bankAccount && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h4 className="text-md font-semibold text-gray-800 mb-2 flex items-center">
-                <IndianRupee size={18} className="mr-2" />
+                  <IndianRupee size={18} className="mr-2" />
                   Bank Account Details
                 </h4>
                 <p className="text-gray-500 italic">No bank account details available</p>
               </div>
             )}
-            
+
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowViewModal(false)}
@@ -962,7 +967,7 @@ const Experts = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Last Name *
@@ -976,7 +981,7 @@ const Experts = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email *
@@ -990,7 +995,7 @@ const Experts = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Phone *
@@ -1004,7 +1009,7 @@ const Experts = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Specialization *
@@ -1018,7 +1023,7 @@ const Experts = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Experience (years)
@@ -1032,7 +1037,7 @@ const Experts = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Hourly Rate ($)
@@ -1047,7 +1052,7 @@ const Experts = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Verification Status
@@ -1065,7 +1070,7 @@ const Experts = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Bio
@@ -1078,7 +1083,7 @@ const Experts = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 ></textarea>
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -1111,7 +1116,7 @@ const Experts = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4 text-red-600">Delete Expert</h3>
             <p className="text-gray-700 mb-6">
-              Are you sure you want to delete expert <strong>{selectedExpert.name}</strong>? 
+              Are you sure you want to delete expert <strong>{selectedExpert.name}</strong>?
               This action cannot be undone.
             </p>
             <div className="flex justify-end space-x-3">
@@ -1151,7 +1156,7 @@ const Experts = () => {
                 <X size={24} />
               </button>
             </div>
-            
+
             {loadingPlans ? (
               <div className="p-8 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -1168,11 +1173,10 @@ const Experts = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="text-lg font-semibold text-gray-900">{plan.name}</h4>
-                        <span className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
-                          plan.type === 'monthly' 
-                            ? 'bg-purple-100 text-purple-800' 
+                        <span className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${plan.type === 'monthly'
+                            ? 'bg-purple-100 text-purple-800'
                             : 'bg-blue-100 text-blue-800'
-                        }`}>
+                          }`}>
                           {plan.type === 'monthly' ? 'Monthly Subscription' : 'Single Class'}
                         </span>
                         {plan.isActive ? (
@@ -1194,11 +1198,11 @@ const Experts = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {plan.description && (
                       <p className="text-gray-600 mb-3">{plan.description}</p>
                     )}
-                    
+
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                       {plan.duration && (
                         <div>
@@ -1249,7 +1253,7 @@ const Experts = () => {
                 ))}
               </div>
             )}
-            
+
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => {

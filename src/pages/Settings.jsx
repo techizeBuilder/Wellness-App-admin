@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, Eye, EyeOff, Bell, Globe, Shield, Palette, RefreshCw } from 'lucide-react';
 import Card from '../components/Card';
 import { apiGet, apiPut } from '../utils/api';
+import config from '../utils/config';
 import toast from 'react-hot-toast';
 
 const Settings = () => {
@@ -10,11 +11,14 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [profileImagePreview, setProfileImagePreview] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     role: '',
+    profileImage: null,
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -49,7 +53,7 @@ const Settings = () => {
     try {
       setLoading(true);
       const response = await apiGet('/api/admin/profile');
-      
+
       if (response.success && response.data?.admin) {
         const admin = response.data.admin;
         setFormData(prev => ({
@@ -57,8 +61,15 @@ const Settings = () => {
           name: admin.name || '',
           email: admin.email || '',
           phone: '', // Admin model doesn't have phone field
-          role: admin.role === 'superadmin' ? 'Super Admin' : 'Admin'
+          role: admin.role === 'superadmin' ? 'Super Admin' : 'Admin',
+          profileImage: admin.profileImage || null
         }));
+
+        // Set profile image preview if exists
+        if (admin.profileImage) {
+          const apiUrl = config.getApiUrl();
+          setProfileImagePreview(`${apiUrl}/uploads/profiles/${admin.profileImage}`);
+        }
       } else {
         throw new Error(response.message || 'Failed to fetch profile');
       }
@@ -106,26 +117,61 @@ const Settings = () => {
     setGeneralSettings(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setProfileImage(file);
+      setProfileImagePreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
-      
+
       if (!formData.name || !formData.email) {
         toast.error('Name and email are required');
         return;
       }
 
-      const response = await apiPut('/api/admin/profile', {
-        name: formData.name,
-        email: formData.email
+      const formDataToSend = new FormData();
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('email', formData.email);
+
+      if (profileImage) {
+        formDataToSend.append('profileImage', profileImage);
+      }
+
+      const token = localStorage.getItem('adminToken');
+      const apiUrl = config.getApiUrl();
+
+      const response = await fetch(`${apiUrl}/api/admin/profile`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formDataToSend
       });
 
-      if (response.success) {
+      const data = await response.json();
+
+      if (data.success) {
         toast.success('Profile updated successfully!');
-        // Refresh profile data
+        setProfileImage(null);
         await fetchProfile();
+
+        // Trigger event to update navbar
+        window.dispatchEvent(new Event('adminProfileUpdated'));
       } else {
-        throw new Error(response.message || 'Failed to update profile');
+        throw new Error(data.message || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -260,15 +306,36 @@ const Settings = () => {
               <Card title="Profile Information">
                 <div className="p-6 space-y-6">
                   <div className="flex items-center space-x-6">
-                    <div className="w-20 h-20 bg-primary-900 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-2xl">
-                        {formData.name.charAt(0)}
-                      </span>
+                    <div className="relative">
+                      {profileImagePreview ? (
+                        <img
+                          src={profileImagePreview}
+                          alt="Profile"
+                          className="w-20 h-20 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 bg-primary-900 rounded-full flex items-center justify-center">
+                          <span className="text-white font-bold text-2xl">
+                            {formData.name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{formData.name}</h3>
                       <p className="text-gray-600">{formData.role}</p>
-                      <button className="text-primary-900 text-sm font-medium mt-1">
+                      <input
+                        type="file"
+                        id="profileImageInput"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('profileImageInput').click()}
+                        className="text-primary-900 text-sm font-medium mt-1 hover:underline cursor-pointer"
+                      >
                         Change Photo
                       </button>
                     </div>
@@ -307,8 +374,8 @@ const Settings = () => {
                   </div>
 
                   <div className="flex justify-end">
-                    <button 
-                      onClick={handleSaveProfile} 
+                    <button
+                      onClick={handleSaveProfile}
                       className="btn-primary flex items-center space-x-2"
                       disabled={saving}
                     >
@@ -374,8 +441,8 @@ const Settings = () => {
                   </div>
 
                   <div className="flex justify-end">
-                    <button 
-                      onClick={handleChangePassword} 
+                    <button
+                      onClick={handleChangePassword}
                       className="btn-primary"
                       disabled={saving}
                     >

@@ -10,7 +10,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
-  "proxy": "http://localhost:5000",
+  "proxy": "https://apiwellness.shrawantravels.com",
   "dependencies": {
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",

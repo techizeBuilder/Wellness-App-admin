@@ -4,7 +4,7 @@ const config = {
   API_BASE_URL: process.env.REACT_APP_PRODUCTION_API_URL || 'https://apiwellness.shrawantravels.com',
   
   // Local development URL
-  LOCAL_API_URL: process.env.REACT_APP_DEVELOPMENT_API_URL || 'http://localhost:5000',
+  LOCAL_API_URL: process.env.REACT_APP_DEVELOPMENT_API_URL || 'https://apiwellness.shrawantravels.com',
   
   // Current environment
   isDevelopment: process.env.NODE_ENV === 'development',

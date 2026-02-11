@@ -5,6 +5,7 @@ import Chart, { CustomLineChart } from '../components/Chart';
 import { formatDate, formatCurrency, getStatusColor } from '../utils/dummyData';
 import { apiGet, apiPatch } from '../utils/api';
 import config from '../utils/config';
+import toast from 'react-hot-toast';
 
 const Payments = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +41,7 @@ const Payments = () => {
     try {
       const token = localStorage.getItem('adminToken');
       const apiUrl = config.getApiUrl();
-      
+
       // Fetch all experts without pagination to get unique specializations
       const response = await fetch(`${apiUrl}/api/admin/experts?limit=1000`, {
         headers: {
@@ -55,14 +56,14 @@ const Payments = () => {
 
       const data = await response.json();
       const experts = data.data?.experts || data.experts || [];
-      
+
       // Extract unique specializations
       const uniqueSpecializations = [...new Set(
         experts
           .map(expert => expert.specialization)
           .filter(spec => spec && spec.trim() !== '')
       )].sort();
-      
+
       setSpecializations(uniqueSpecializations);
     } catch (error) {
       console.error('Error fetching specializations:', error);
@@ -89,11 +90,11 @@ const Payments = () => {
         page: currentPage.toString(),
         limit: paymentsPerPage.toString()
       });
-      
+
       if (statusFilter !== 'All') {
         params.append('status', statusFilter);
       }
-      
+
       if (searchTerm) {
         params.append('search', searchTerm);
       }
@@ -117,7 +118,7 @@ const Payments = () => {
 
       // Transform payments to match UI format
       const transformedPayments = paymentsData.map(payment => transformPayment(payment));
-      
+
       setPayments(transformedPayments);
       setStats(statsData);
       setPagination(paginationData);
@@ -150,7 +151,7 @@ const Payments = () => {
     };
 
     // Get user name
-    const userName = payment.user 
+    const userName = payment.user
       ? `${payment.user.firstName || ''} ${payment.user.lastName || ''}`.trim() || payment.user.email
       : 'Unknown User';
 
@@ -188,8 +189,8 @@ const Payments = () => {
   const filteredPayments = payments.filter(payment => {
     if (searchTerm) {
       const matchesSearch = payment.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           payment.service.toLowerCase().includes(searchTerm.toLowerCase());
+        payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.service.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
     }
     // Status filtering is done server-side, but we can also filter client-side as fallback
@@ -233,7 +234,7 @@ const Payments = () => {
 
   const processRefund = async () => {
     if (!selectedPayment?.originalPayment?._id) return;
-    
+
     try {
       setUpdating(true);
       await apiPatch(`/api/admin/payments/${selectedPayment.originalPayment._id}/status`, {
@@ -253,7 +254,7 @@ const Payments = () => {
 
   const updatePaymentStatus = async (newStatus) => {
     if (!selectedPayment?.originalPayment?._id) return;
-    
+
     // Map UI status to DB status
     const statusMap = {
       'Completed': 'completed',
@@ -263,9 +264,9 @@ const Payments = () => {
       'Processing': 'processing',
       'Cancelled': 'cancelled'
     };
-    
+
     const dbStatus = statusMap[newStatus] || newStatus.toLowerCase();
-    
+
     try {
       setUpdating(true);
       await apiPatch(`/api/admin/payments/${selectedPayment.originalPayment._id}/status`, {
@@ -283,20 +284,63 @@ const Payments = () => {
     }
   };
 
+  const handleExportReport = () => {
+    try {
+      // Create CSV data
+      const csvData = [
+        ['Payment ID', 'User', 'Expert', 'Service', 'Amount', 'Status', 'Payment Method', 'Date'],
+        ...payments.map(payment => [
+          payment.id,
+          payment.user,
+          payment.expert,
+          payment.service,
+          payment.amount,
+          payment.status,
+          payment.paymentMethod || 'N/A',
+          payment.date
+        ])
+      ];
+
+      // Add summary at the end
+      csvData.push([]);
+      csvData.push(['Summary']);
+      csvData.push(['Total Revenue', stats.totalRevenue]);
+      csvData.push(['Pending Amount', stats.pendingAmount]);
+      csvData.push(['Refunded Amount', stats.refundedAmount]);
+      csvData.push(['Total Transactions', stats.totalTransactions]);
+
+      const csvContent = csvData.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zenovia-payments-report-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Payment report exported successfully!');
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      toast.error('Failed to export report');
+    }
+  };
+
   // View Payment Modal Component
   const ViewPaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-gray-900">Payment Details</h3>
-          <button 
-            onClick={() => {setShowViewModal(false); setSelectedPayment(null);}}
+          <button
+            onClick={() => { setShowViewModal(false); setSelectedPayment(null); }}
             className="text-gray-400 hover:text-gray-600"
           >
             ✕
           </button>
         </div>
-        
+
         {selectedPayment && (
           <div className="space-y-6">
             {/* Header Section */}
@@ -321,7 +365,7 @@ const Payments = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Payment Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -344,7 +388,7 @@ const Payments = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <h5 className="text-lg font-semibold text-gray-900 mb-3">Payment Info</h5>
                 <div className="space-y-3">
@@ -365,27 +409,27 @@ const Payments = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Actions */}
             <div className="flex space-x-3 pt-4">
               {selectedPayment.status === 'Completed' && (
-                <button 
-                  onClick={() => {setShowViewModal(false); handleRefundPayment(selectedPayment);}}
+                <button
+                  onClick={() => { setShowViewModal(false); handleRefundPayment(selectedPayment); }}
                   className="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
                 >
                   Process Refund
                 </button>
               )}
               {selectedPayment.status !== 'Completed' && selectedPayment.status !== 'Refunded' && (
-                <button 
-                  onClick={() => {setShowViewModal(false); handleUpdateStatus(selectedPayment);}}
+                <button
+                  onClick={() => { setShowViewModal(false); handleUpdateStatus(selectedPayment); }}
                   className="flex-1 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
                 >
                   Update Status
                 </button>
               )}
-              <button 
-                onClick={() => {setShowViewModal(false); setSelectedPayment(null);}}
+              <button
+                onClick={() => { setShowViewModal(false); setSelectedPayment(null); }}
                 className="btn-secondary flex-1"
               >
                 Close
@@ -404,14 +448,14 @@ const Payments = () => {
         <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
           <DollarSign className="w-6 h-6 text-red-600" />
         </div>
-        
+
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Process Refund</h3>
           <p className="text-gray-600 mb-4">
-            Are you sure you want to process a refund for transaction 
+            Are you sure you want to process a refund for transaction
             <strong> #{selectedPayment?.transactionId}</strong>?
           </p>
-          
+
           {selectedPayment && (
             <div className="bg-red-50 p-3 rounded-lg mb-4 text-left">
               <div className="text-sm text-gray-600">
@@ -423,19 +467,19 @@ const Payments = () => {
               </div>
             </div>
           )}
-          
+
           <div className="text-red-600 text-sm mb-4">
             This action will initiate a refund to the original payment method.
           </div>
-          
+
           <div className="flex space-x-3">
-            <button 
-              onClick={() => {setShowRefundModal(false); setSelectedPayment(null);}}
+            <button
+              onClick={() => { setShowRefundModal(false); setSelectedPayment(null); }}
               className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
             >
               Cancel
             </button>
-            <button 
+            <button
               onClick={processRefund}
               disabled={updating}
               className="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -456,17 +500,17 @@ const Payments = () => {
         <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-blue-100 rounded-full">
           <RefreshCw className="w-6 h-6 text-blue-600" />
         </div>
-        
+
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Update Payment Status</h3>
           <p className="text-gray-600 mb-4">
             Update the status for transaction <strong>#{selectedPayment?.transactionId}</strong>
           </p>
-          
+
           {selectedPayment && (
             <div className="bg-blue-50 p-3 rounded-lg mb-4 text-left">
               <div className="text-sm text-gray-600">
-                <div><strong>Current Status:</strong> 
+                <div><strong>Current Status:</strong>
                   <span className={`ml-2 ${getStatusColor(selectedPayment.status)}`}>
                     {selectedPayment.status}
                   </span>
@@ -476,9 +520,9 @@ const Payments = () => {
               </div>
             </div>
           )}
-          
+
           <div className="space-y-2 mb-4">
-            <button 
+            <button
               onClick={() => updatePaymentStatus('Completed')}
               disabled={updating}
               className="w-full px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -486,7 +530,7 @@ const Payments = () => {
               {updating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Mark as Completed
             </button>
-            <button 
+            <button
               onClick={() => updatePaymentStatus('Failed')}
               disabled={updating}
               className="w-full px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -494,7 +538,7 @@ const Payments = () => {
               {updating ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Mark as Failed
             </button>
-            <button 
+            <button
               onClick={() => updatePaymentStatus('Pending')}
               disabled={updating}
               className="w-full px-4 py-2 text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -503,9 +547,9 @@ const Payments = () => {
               Mark as Pending
             </button>
           </div>
-          
-          <button 
-            onClick={() => {setShowStatusModal(false); setSelectedPayment(null);}}
+
+          <button
+            onClick={() => { setShowStatusModal(false); setSelectedPayment(null); }}
             className="w-full px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
           >
             Cancel
@@ -524,7 +568,11 @@ const Payments = () => {
           <p className="text-gray-600 mt-1">Track and manage all payment transactions</p>
         </div>
         <div className="mt-4 sm:mt-0">
-          <button className="btn-secondary flex items-center space-x-2">
+          <button
+            onClick={handleExportReport}
+            className="btn-secondary flex items-center space-x-2"
+            disabled={loading || payments.length === 0}
+          >
             <Download size={16} />
             <span>Export Report</span>
           </button>
@@ -590,7 +638,7 @@ const Payments = () => {
                   }}
                 />
               </div>
-              
+
               <select
                 className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 value={statusFilter}
@@ -697,70 +745,70 @@ const Payments = () => {
               </thead>
               <tbody>
                 {currentPayments.map((payment) => (
-                <tr key={payment.id} className="border-b border-gray-100">
-                  <td className="py-3 px-4">
-                    <div className="font-mono text-sm text-primary-900">
-                      {payment.transactionId}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="font-medium text-gray-900">{payment.user}</div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                      {payment.service}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="font-semibold text-gray-900">
-                      {formatCurrency(payment.amount)}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center space-x-2">
-                      {getPaymentMethodIcon(payment.method)}
-                      <span className="text-sm">{payment.method}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-gray-700">
-                    {formatDate(payment.date)}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={getStatusColor(payment.status)}>
-                      {payment.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => handleViewPayment(payment)}
-                        className="p-1 text-primary-900 hover:text-primary-700"
-                        title="View Details"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      
-                      {payment.status === 'Completed' && (
-                        <button 
-                          onClick={() => handleRefundPayment(payment)}
-                          className="p-1 text-red-600 hover:text-red-800"
-                          title="Process Refund"
+                  <tr key={payment.id} className="border-b border-gray-100">
+                    <td className="py-3 px-4">
+                      <div className="font-mono text-sm text-primary-900">
+                        {payment.transactionId}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-gray-900">{payment.user}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                        {payment.service}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-gray-900">
+                        {formatCurrency(payment.amount)}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center space-x-2">
+                        {getPaymentMethodIcon(payment.method)}
+                        <span className="text-sm">{payment.method}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-gray-700">
+                      {formatDate(payment.date)}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={getStatusColor(payment.status)}>
+                        {payment.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewPayment(payment)}
+                          className="p-1 text-primary-900 hover:text-primary-700"
+                          title="View Details"
                         >
-                          <DollarSign size={16} />
+                          <Eye size={16} />
                         </button>
-                      )}
-                      
-                      {payment.status !== 'Completed' && payment.status !== 'Refunded' && (
-                        <button 
-                          onClick={() => handleUpdateStatus(payment)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                          title="Update Status"
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+
+                        {payment.status === 'Completed' && (
+                          <button
+                            onClick={() => handleRefundPayment(payment)}
+                            className="p-1 text-red-600 hover:text-red-800"
+                            title="Process Refund"
+                          >
+                            <DollarSign size={16} />
+                          </button>
+                        )}
+
+                        {payment.status !== 'Completed' && payment.status !== 'Refunded' && (
+                          <button
+                            onClick={() => handleUpdateStatus(payment)}
+                            className="p-1 text-blue-600 hover:text-blue-800"
+                            title="Update Status"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -840,10 +888,10 @@ const Payments = () => {
 
       {/* View Payment Modal */}
       {showViewModal && <ViewPaymentModal />}
-      
+
       {/* Refund Payment Modal */}
       {showRefundModal && <RefundPaymentModal />}
-      
+
       {/* Status Update Modal */}
       {showStatusModal && <StatusUpdateModal />}
     </div>
