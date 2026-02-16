@@ -9,17 +9,14 @@ import {
   Menu
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiGet } from '../utils/api';
+import { apiGet, apiPut } from '../utils/api';
 import config from '../utils/config';
 
 const Navbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [notifications] = useState([
-    { id: 1, message: 'New user registration', time: '2 min ago', unread: true },
-    { id: 2, message: 'Payment received', time: '5 min ago', unread: true },
-    { id: 3, message: 'Booking cancelled', time: '10 min ago', unread: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [adminProfile, setAdminProfile] = useState({
     name: 'Admin User',
@@ -31,7 +28,63 @@ const Navbar = () => {
   const notificationRef = useRef(null);
   const searchRef = useRef(null);
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  // Format time ago
+  const formatTimeAgo = (date) => {
+    const now = new Date();
+    const postDate = new Date(date);
+    const seconds = Math.floor((now - postDate) / 1000);
+
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const response = await apiGet('/api/admin/notifications?limit=10');
+      if (response.success && response.data?.notifications) {
+        setNotifications(response.data.notifications);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // Fetch unread count
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await apiGet('/api/admin/notifications/count');
+      if (response.success && response.data?.unreadCount !== undefined) {
+        setUnreadCount(response.data.unreadCount);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
+  // Mark notification as read
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await apiPut(`/api/admin/notifications/${notificationId}/read`, {});
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => 
+          n._id === notificationId ? { ...n, isRead: true } : n
+        )
+      );
+      
+      // Refresh unread count
+      await fetchUnreadCount();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
 
   // Fetch admin profile
   const fetchAdminProfile = async () => {
@@ -52,13 +105,21 @@ const Navbar = () => {
 
   useEffect(() => {
     fetchAdminProfile();
+    fetchNotifications();
+    fetchUnreadCount();
 
-    // Listen for profile updates
+    // Listen for profile and notification updates
     const handleProfileUpdate = () => {
       fetchAdminProfile();
     };
 
+    const handleNotificationUpdate = () => {
+      fetchNotifications();
+      fetchUnreadCount();
+    };
+
     window.addEventListener('adminProfileUpdated', handleProfileUpdate);
+    window.addEventListener('notificationUpdated', handleNotificationUpdate);
 
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -81,6 +142,7 @@ const Navbar = () => {
 
     return () => {
       window.removeEventListener('adminProfileUpdated', handleProfileUpdate);
+      window.removeEventListener('notificationUpdated', handleNotificationUpdate);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
@@ -119,34 +181,8 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="flex-1 max-w-lg mx-4 lg:mx-0">
-          <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search users, experts, bookings..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
-              aria-label="Search"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                aria-label="Clear search"
-              >
-                ×
-              </button>
-            )}
-          </form>
-        </div>
-
         {/* Right Section */}
-        <div className="flex items-center space-x-2 lg:space-x-4">
+        <div className="flex items-center space-x-2 lg:space-x-4 ml-auto">
           {/* Notifications */}
           <div className="relative" ref={notificationRef}>
             <button
@@ -165,7 +201,7 @@ const Navbar = () => {
             {/* Notifications Dropdown */}
             {isNotificationOpen && (
               <>
-                <div className="fixed inset-0 z-10" aria-hidden="true" />
+                <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setIsNotificationOpen(false)} />
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">
@@ -179,12 +215,14 @@ const Navbar = () => {
                     {notifications.length > 0 ? (
                       notifications.map((notification) => (
                         <div
-                          key={notification.id}
-                          className={`p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${notification.unread ? 'bg-blue-50 border-l-4 border-l-coral-400' : ''
+                          key={notification._id}
+                          onClick={() => !notification.isRead && handleMarkAsRead(notification._id)}
+                          className={`p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${!notification.isRead ? 'bg-blue-50 border-l-4 border-l-coral-400' : ''
                             }`}
                         >
-                          <p className="text-sm text-gray-900 font-medium">{notification.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                          <p className="text-sm text-gray-900 font-medium">{notification.title}</p>
+                          <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                          <p className="text-xs text-gray-500 mt-1">{formatTimeAgo(notification.createdAt)}</p>
                         </div>
                       ))
                     ) : (
@@ -238,7 +276,7 @@ const Navbar = () => {
             {/* Profile Dropdown Menu */}
             {isProfileOpen && (
               <>
-                <div className="fixed inset-0 z-10" aria-hidden="true" />
+                <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setIsProfileOpen(false)} />
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                   <div className="p-3 border-b border-gray-200">
                     <div className="text-sm font-medium text-gray-900">{adminProfile.name}</div>

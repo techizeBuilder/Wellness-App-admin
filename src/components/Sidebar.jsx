@@ -15,13 +15,28 @@ import {
   ChevronLeft,
   Shield
 } from 'lucide-react';
+import { apiGet } from '../utils/api';
+import config from '../utils/config';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [userPermissions, setUserPermissions] = useState([]);
   const [userRole, setUserRole] = useState('');
+  const [siteLogo, setSiteLogo] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Fetch site logo from API
+  const fetchSiteLogo = async () => {
+    try {
+      const response = await apiGet('/api/admin/logo');
+      if (response.success && response.data?.logoUrl) {
+        setSiteLogo(response.data.logoUrl);
+      }
+    } catch (error) {
+      console.error('Error fetching logo:', error);
+    }
+  };
 
   // Load user permissions from localStorage
   useEffect(() => {
@@ -32,6 +47,20 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     } catch (err) {
       console.error('Failed to parse admin user data:', err);
     }
+    
+    // Fetch logo on mount
+    fetchSiteLogo();
+
+    // Listen for logo updates
+    const handleLogoUpdate = () => {
+      fetchSiteLogo();
+    };
+
+    window.addEventListener('logoUpdated', handleLogoUpdate);
+
+    return () => {
+      window.removeEventListener('logoUpdated', handleLogoUpdate);
+    };
   }, []);
 
   // Define menu items with required permissions
@@ -106,11 +135,19 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
         <div className="flex items-center justify-between p-4 border-b border-primary-800">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
-              <img 
-                src="/Image/apple-touch-icon.png" 
-                alt="Zenovia Logo" 
-                className="w-10 h-10 object-contain rounded-lg"
-              />
+              {siteLogo ? (
+                <img 
+                  src={siteLogo} 
+                  alt="Site Logo" 
+                  className="w-10 h-10 object-contain rounded-lg"
+                />
+              ) : (
+                <img 
+                  src="/Image/apple-touch-icon.png" 
+                  alt="Zenovia Logo" 
+                  className="w-10 h-10 object-contain rounded-lg"
+                />
+              )}
               <span className="text-xl font-bold text-white">ZENOVIA</span>
             </div>
           )}
@@ -126,11 +163,19 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           </button>
 
           {isCollapsed && (
-            <img 
-              src="/Image/apple-touch-icon.png" 
-              alt="Zenovia Logo" 
-              className="w-8 h-8 object-contain rounded-lg mx-auto"
-            />
+            siteLogo ? (
+              <img 
+                src={siteLogo} 
+                alt="Site Logo" 
+                className="w-8 h-8 object-contain rounded-lg mx-auto"
+              />
+            ) : (
+              <img 
+                src="/Image/apple-touch-icon.png" 
+                alt="Zenovia Logo" 
+                className="w-8 h-8 object-contain rounded-lg mx-auto"
+              />
+            )
           )}
         </div>
 

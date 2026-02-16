@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react';
 import config from '../utils/config';
+import { apiGet } from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -11,7 +12,24 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [siteLogo, setSiteLogo] = useState(null);
   const navigate = useNavigate();
+
+  // Fetch site logo on component mount
+  useEffect(() => {
+    const fetchSiteLogo = async () => {
+      try {
+        const response = await apiGet('/api/admin/logo');
+        if (response.success && response.data?.logoUrl) {
+          setSiteLogo(response.data.logoUrl);
+        }
+      } catch (error) {
+        console.error('Error fetching site logo:', error);
+      }
+    };
+
+    fetchSiteLogo();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -76,9 +94,17 @@ const Login = () => {
         <div>
           {/* Logo */}
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-teal-700 font-bold text-2xl">Z</span>
-            </div>
+            {siteLogo ? (
+              <img
+                src={siteLogo}
+                alt="Site Logo"
+                className="h-16 w-auto object-contain"
+              />
+            ) : (
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="text-teal-700 font-bold text-2xl">Z</span>
+              </div>
+            )}
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Zenovia Admin

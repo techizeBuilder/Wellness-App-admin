@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff, Bell, Globe, Shield, Palette, RefreshCw } from 'lucide-react';
+import { Save, Eye, EyeOff, Bell, Globe, Shield, RefreshCw } from 'lucide-react';
 import Card from '../components/Card';
 import { apiGet, apiPut } from '../utils/api';
 import config from '../utils/config';
@@ -24,23 +24,10 @@ const Settings = () => {
     confirmPassword: ''
   });
 
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    bookingUpdates: true,
-    paymentAlerts: true,
-    expertApplications: true,
-    systemUpdates: false
-  });
-
   const [generalSettings, setGeneralSettings] = useState({
-    siteName: 'Zenovia Wellness',
-    timezone: 'Asia/Kolkata',
-    language: 'English',
-    currency: 'INR',
-    dateFormat: 'DD/MM/YYYY',
-    theme: 'light'
+    logo: null,
   });
+  const [logoPreview, setLogoPreview] = useState(null);
 
   // Load admin profile on mount
   useEffect(() => {
@@ -108,10 +95,6 @@ const Settings = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleNotificationChange = (key) => {
-    setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const handleGeneralSettingChange = (e) => {
     const { name, value } = e.target;
     setGeneralSettings(prev => ({ ...prev, [name]: value }));
@@ -130,6 +113,22 @@ const Settings = () => {
       }
       setProfileImage(file);
       setProfileImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setGeneralSettings(prev => ({ ...prev, logo: file }));
+      setLogoPreview(URL.createObjectURL(file));
     }
   };
 
@@ -162,7 +161,7 @@ const Settings = () => {
       });
 
       const data = await response.json();
-
+dsfh
       if (data.success) {
         toast.success('Profile updated successfully!');
         setProfileImage(null);
@@ -224,31 +223,52 @@ const Settings = () => {
     }
   };
 
-  const handleSaveNotificationPreferences = () => {
+  const handleSaveGeneralSettings = async () => {
     try {
-      localStorage.setItem('adminNotificationPreferences', JSON.stringify(notifications));
-      toast.success('Notification preferences saved successfully!');
-    } catch (error) {
-      console.error('Error saving notification preferences:', error);
-      toast.error('Failed to save notification preferences');
-    }
-  };
+      setSaving(true);
 
-  const handleSaveGeneralSettings = () => {
-    try {
-      localStorage.setItem('adminGeneralSettings', JSON.stringify(generalSettings));
-      toast.success('General settings saved successfully!');
+      if (!generalSettings.logo) {
+        toast.error('Please upload a logo first');
+        return;
+      }
+
+      const formDataToSend = new FormData();
+      formDataToSend.append('logo', generalSettings.logo);
+
+      const token = localStorage.getItem('adminToken');
+      const apiUrl = config.getApiUrl();
+
+      const response = await fetch(`${apiUrl}/api/admin/logo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formDataToSend
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Logo uploaded successfully!');
+        setGeneralSettings(prev => ({ ...prev, logo: null }));
+        setLogoPreview(null);
+        
+        // Trigger event to update navbar
+        window.dispatchEvent(new Event('logoUpdated'));
+      } else {
+        throw new Error(data.message || 'Failed to upload logo');
+      }
     } catch (error) {
-      console.error('Error saving general settings:', error);
-      toast.error('Failed to save general settings');
+      console.error('Error uploading logo:', error);
+      toast.error(error.message || 'Failed to upload logo');
+    } finally {
+      setSaving(false);
     }
   };
 
   const tabs = [
     { id: 'profile', name: 'Profile', icon: Shield },
-    { id: 'notifications', name: 'Notifications', icon: Bell },
-    { id: 'general', name: 'General', icon: Globe },
-    { id: 'appearance', name: 'Appearance', icon: Palette }
+    { id: 'general', name: 'General', icon: Globe }
   ];
 
   if (loading) {
@@ -454,216 +474,49 @@ const Settings = () => {
             </div>
           )}
 
-          {activeTab === 'notifications' && (
-            <Card title="Notification Preferences">
-              <div className="p-6 space-y-6">
-                <div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-4">Email Notifications</h4>
-                  <div className="space-y-4">
-                    {Object.entries({
-                      emailNotifications: 'General email notifications',
-                      bookingUpdates: 'Booking updates and confirmations',
-                      paymentAlerts: 'Payment and transaction alerts',
-                      expertApplications: 'New expert applications'
-                    }).map(([key, label]) => (
-                      <div key={key} className="flex items-center justify-between">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">{label}</label>
-                        </div>
-                        <button
-                          onClick={() => handleNotificationChange(key)}
-                          className={`
-                            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                            ${notifications[key] ? 'bg-primary-900' : 'bg-gray-200'}
-                          `}
-                        >
-                          <span
-                            className={`
-                              inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                              ${notifications[key] ? 'translate-x-6' : 'translate-x-1'}
-                            `}
-                          />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-4">Push Notifications</h4>
-                  <div className="space-y-4">
-                    {Object.entries({
-                      pushNotifications: 'Browser push notifications',
-                      systemUpdates: 'System maintenance and updates'
-                    }).map(([key, label]) => (
-                      <div key={key} className="flex items-center justify-between">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">{label}</label>
-                        </div>
-                        <button
-                          onClick={() => handleNotificationChange(key)}
-                          className={`
-                            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                            ${notifications[key] ? 'bg-primary-900' : 'bg-gray-200'}
-                          `}
-                        >
-                          <span
-                            className={`
-                              inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                              ${notifications[key] ? 'translate-x-6' : 'translate-x-1'}
-                            `}
-                          />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button onClick={handleSaveNotificationPreferences} className="btn-primary">
-                    Save Preferences
-                  </button>
-                </div>
-              </div>
-            </Card>
-          )}
-
           {activeTab === 'general' && (
             <Card title="General Settings">
               <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="form-label">Site Name</label>
-                    <input
-                      type="text"
-                      name="siteName"
-                      className="form-input"
-                      value={generalSettings.siteName}
-                      onChange={handleGeneralSettingChange}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label">Timezone</label>
-                    <select
-                      name="timezone"
-                      className="form-input"
-                      value={generalSettings.timezone}
-                      onChange={handleGeneralSettingChange}
-                    >
-                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                      <option value="America/New_York">America/New_York (EST)</option>
-                      <option value="Europe/London">Europe/London (GMT)</option>
-                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">Language</label>
-                    <select
-                      name="language"
-                      className="form-input"
-                      value={generalSettings.language}
-                      onChange={handleGeneralSettingChange}
-                    >
-                      <option value="English">English</option>
-                      <option value="Hindi">Hindi</option>
-                      <option value="Spanish">Spanish</option>
-                      <option value="French">French</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">Currency</label>
-                    <select
-                      name="currency"
-                      className="form-input"
-                      value={generalSettings.currency}
-                      onChange={handleGeneralSettingChange}
-                    >
-                      <option value="INR">Indian Rupee (₹)</option>
-                      <option value="USD">US Dollar ($)</option>
-                      <option value="EUR">Euro (€)</option>
-                      <option value="GBP">British Pound (£)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">Date Format</label>
-                    <select
-                      name="dateFormat"
-                      className="form-input"
-                      value={generalSettings.dateFormat}
-                      onChange={handleGeneralSettingChange}
-                    >
-                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                    </select>
+                <div>
+                  <label className="form-label">Logo</label>
+                  <div className="flex items-center space-x-6">
+                    <div className="relative">
+                      {logoPreview ? (
+                        <img
+                          src={logoPreview}
+                          alt="Logo"
+                          className="w-32 h-32 object-contain border border-gray-200 rounded p-2"
+                        />
+                      ) : (
+                        <div className="w-32 h-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
+                          <span className="text-gray-500 text-sm text-center">No logo uploaded</span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="file"
+                        id="logoInput"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleLogoChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('logoInput').click()}
+                        className="btn-primary mb-2"
+                      >
+                        Upload Logo
+                      </button>
+                      <p className="text-xs text-gray-500">Supported formats: JPG, PNG, GIF, WebP</p>
+                      <p className="text-xs text-gray-500">Max size: 5MB</p>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex justify-end">
                   <button onClick={handleSaveGeneralSettings} className="btn-primary">
                     Save Settings
-                  </button>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {activeTab === 'appearance' && (
-            <Card title="Appearance Settings">
-              <div className="p-6 space-y-6">
-                <div>
-                  <label className="form-label">Theme</label>
-                  <div className="mt-2 grid grid-cols-2 gap-4">
-                    <div
-                      onClick={() => setGeneralSettings(prev => ({ ...prev, theme: 'light' }))}
-                      className={`
-                        p-4 border-2 rounded-lg cursor-pointer transition-colors
-                        ${generalSettings.theme === 'light'
-                          ? 'border-primary-900 bg-primary-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                        }
-                      `}
-                    >
-                      <div className="w-full h-20 bg-white border border-gray-200 rounded mb-2"></div>
-                      <div className="text-sm font-medium text-center">Light Theme</div>
-                    </div>
-                    <div
-                      onClick={() => setGeneralSettings(prev => ({ ...prev, theme: 'dark' }))}
-                      className={`
-                        p-4 border-2 rounded-lg cursor-pointer transition-colors
-                        ${generalSettings.theme === 'dark'
-                          ? 'border-primary-900 bg-primary-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                        }
-                      `}
-                    >
-                      <div className="w-full h-20 bg-gray-800 border border-gray-600 rounded mb-2"></div>
-                      <div className="text-sm font-medium text-center">Dark Theme</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="form-label">Brand Colors</label>
-                  <div className="mt-2 grid grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-primary-900 rounded-lg mx-auto mb-2"></div>
-                      <div className="text-sm text-gray-600">Primary</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-gold-500 rounded-lg mx-auto mb-2"></div>
-                      <div className="text-sm text-gray-600">Gold</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-coral-400 rounded-lg mx-auto mb-2"></div>
-                      <div className="text-sm text-gray-600">Coral</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button onClick={handleSaveGeneralSettings} className="btn-primary">
-                    Save Appearance
                   </button>
                 </div>
               </div>
