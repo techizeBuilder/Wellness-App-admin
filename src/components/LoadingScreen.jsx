@@ -8,7 +8,15 @@ const LoadingScreen = () => {
     <div className="fixed top-0 left-0 w-full h-full bg-gradient-to-br from-teal-600 via-teal-700 to-teal-800 flex flex-col items-center justify-center z-50">
       <div className="loading-logo">
         {settings.logoUrl ? (
-          <img src={settings.logoUrl} alt="Site Logo" className="h-16 w-auto object-contain" />
+          <img
+            src={settings.logoUrl}
+            alt="Site Logo"
+            className="h-16 w-auto object-contain"
+            onError={(e) => {
+              console.error('Logo image failed to load:', e);
+              e.target.style.display = 'none';
+            }}
+          />
         ) : (
           <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg">
             <span className="text-teal-700 font-bold text-2xl">Z</span>

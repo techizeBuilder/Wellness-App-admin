@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { apiGet } from '../utils/api';
+import { getFullImageUrl } from '../utils/imageUrl';
 
 const SettingsContext = createContext();
 
@@ -19,7 +20,7 @@ export const SettingsProvider = ({ children }) => {
         if (response.success && response.data?.logoUrl) {
           setSettings(prevSettings => ({
             ...prevSettings,
-            logoUrl: response.data.logoUrl,
+            logoUrl: getFullImageUrl(response.data.logoUrl),
           }));
         }
       } catch (error) {

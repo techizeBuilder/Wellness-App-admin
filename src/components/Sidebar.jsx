@@ -16,6 +16,7 @@ import {
   Shield
 } from 'lucide-react';
 import { apiGet } from '../utils/api';
+import { getFullImageUrl } from '../utils/imageUrl';
 import config from '../utils/config';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
@@ -31,7 +32,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     try {
       const response = await apiGet('/api/admin/logo');
       if (response.success && response.data?.logoUrl) {
-        setSiteLogo(response.data.logoUrl);
+        setSiteLogo(getFullImageUrl(response.data.logoUrl));
       }
     } catch (error) {
       console.error('Error fetching logo:', error);
@@ -47,7 +48,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     } catch (err) {
       console.error('Failed to parse admin user data:', err);
     }
-    
+
     // Fetch logo on mount
     fetchSiteLogo();
 
@@ -81,10 +82,10 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     return menuItems.filter(item => {
       // Dashboard is always visible
       if (!item.permission) return true;
-      
+
       // Super admins can see everything
       if (userRole === 'superadmin') return true;
-      
+
       // Regular admins can only see items they have permission for
       return userPermissions.includes(item.permission);
     });
@@ -136,22 +137,22 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
               {siteLogo ? (
-                <img 
-                  src={siteLogo} 
-                  alt="Site Logo" 
+                <img
+                  src={siteLogo}
+                  alt="Site Logo"
                   className="w-10 h-10 object-contain rounded-lg"
                 />
               ) : (
-                <img 
-                  src="/Image/apple-touch-icon.png" 
-                  alt="Zenovia Logo" 
+                <img
+                  src="/Image/apple-touch-icon.png"
+                  alt="Zenovia Logo"
                   className="w-10 h-10 object-contain rounded-lg"
                 />
               )}
               <span className="text-xl font-bold text-white">ZENOVIA</span>
             </div>
           )}
-          
+
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="hidden lg:block p-1 rounded-md hover:bg-primary-800 transition-colors"
@@ -164,15 +165,15 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
           {isCollapsed && (
             siteLogo ? (
-              <img 
-                src={siteLogo} 
-                alt="Site Logo" 
+              <img
+                src={siteLogo}
+                alt="Site Logo"
                 className="w-8 h-8 object-contain rounded-lg mx-auto"
               />
             ) : (
-              <img 
-                src="/Image/apple-touch-icon.png" 
-                alt="Zenovia Logo" 
+              <img
+                src="/Image/apple-touch-icon.png"
+                alt="Zenovia Logo"
                 className="w-8 h-8 object-contain rounded-lg mx-auto"
               />
             )

@@ -100,6 +100,41 @@
     <div id="root"></div>
     
     <script>
+      // Fetch and display dynamic logo
+      async function loadDynamicLogo() {
+        try {
+          const apiUrl = 'https://apiwellness.shrawantravels.com';
+          const response = await fetch(`${apiUrl}/api/admin/logo`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data?.logoUrl) {
+              const logoUrl = data.data.logoUrl;
+              // Convert relative URL to full URL
+              const fullLogoUrl = logoUrl.startsWith('http') 
+                ? logoUrl 
+                : `${apiUrl}${logoUrl}`;
+              
+              // Update the logo image
+              const logoImg = document.querySelector('.loading-logo img');
+              if (logoImg) {
+                logoImg.src = fullLogoUrl;
+                logoImg.onerror = function() {
+                  // Fallback to default if dynamic logo fails
+                  this.src = '/Image/apple-touch-icon.png';
+                };
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading dynamic logo:', error);
+          // Silently fail and use default logo
+        }
+      }
+
+      // Load dynamic logo before showing loading screen
+      loadDynamicLogo();
+
       // Hide loading screen after React loads
       window.addEventListener('load', function() {
         setTimeout(function() {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react';
 import config from '../utils/config';
 import { apiGet } from '../utils/api';
+import { getFullImageUrl } from '../utils/imageUrl';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -21,7 +22,7 @@ const Login = () => {
       try {
         const response = await apiGet('/api/admin/logo');
         if (response.success && response.data?.logoUrl) {
-          setSiteLogo(response.data.logoUrl);
+          setSiteLogo(getFullImageUrl(response.data.logoUrl));
         }
       } catch (error) {
         console.error('Error fetching site logo:', error);
