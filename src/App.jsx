@@ -14,6 +14,7 @@ import Payments from './pages/Payments';
 import Subscriptions from './pages/Subscriptions';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Content from './pages/Content';
 import './styles/global.css';
 
 // Protected Route Component
@@ -34,130 +35,140 @@ function App() {
       <div className="App">
         <Routes>
           {/* Public Routes */}
-          <Route 
-            path="/login" 
+          <Route
+            path="/login"
             element={
               <PublicRoute>
                 <Login />
               </PublicRoute>
-            } 
+            }
           />
-          <Route 
-            path="/forgot-password" 
+          <Route
+            path="/forgot-password"
             element={
               <PublicRoute>
                 <ForgotPassword />
               </PublicRoute>
-            } 
+            }
           />
-          <Route 
-            path="/reset-password" 
+          <Route
+            path="/reset-password"
             element={
               <PublicRoute>
                 <ResetPassword />
               </PublicRoute>
-            } 
+            }
           />
-          
+
           {/* Protected Routes */}
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Dashboard />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/users" 
+          <Route
+            path="/users"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Users />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/experts" 
+          <Route
+            path="/experts"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Experts />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admins" 
+          <Route
+            path="/admins"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Admins />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/bookings" 
+          <Route
+            path="/bookings"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Bookings />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/payments" 
+          <Route
+            path="/payments"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Payments />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/subscriptions" 
+          <Route
+            path="/subscriptions"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Subscriptions />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/reports" 
+          <Route
+            path="/content"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Content />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Reports />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/settings" 
+          <Route
+            path="/settings"
             element={
               <ProtectedRoute>
                 <MainLayout>
                   <Settings />
                 </MainLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          
+
           {/* Catch all route - redirect to dashboard */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-        
+
         {/* Toast notifications */}
         <Toaster
           position="top-right"

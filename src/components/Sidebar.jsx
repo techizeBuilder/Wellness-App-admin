@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  Shield
+  Shield,
+  FileText
 } from 'lucide-react';
 import { apiGet } from '../utils/api';
 import { getFullImageUrl } from '../utils/imageUrl';
@@ -73,6 +74,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/bookings', name: 'Bookings', icon: Calendar, permission: 'manage_bookings' },
     { path: '/payments', name: 'Payments', icon: CreditCard, permission: 'manage_payments' },
     { path: '/subscriptions', name: 'Subscriptions', icon: Package, permission: 'manage_subscriptions' },
+    { path: '/content', name: 'Content', icon: FileText, permission: 'manage_content' },
     { path: '/reports', name: 'Reports', icon: BarChart3, permission: 'view_reports' },
     { path: '/settings', name: 'Settings', icon: Settings, permission: 'manage_settings' },
   ];
