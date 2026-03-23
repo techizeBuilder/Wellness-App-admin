@@ -111,9 +111,65 @@ const Settings = () => {
         toast.error('Image size should be less than 5MB');
         return;
       }
-      setProfileImage(file);
-      setProfileImagePreview(URL.createObjectURL(file));
+
+      // Compress image before upload to avoid nginx limits
+      compressImage(file).then(compressedFile => {
+        setProfileImage(compressedFile);
+        setProfileImagePreview(URL.createObjectURL(compressedFile));
+      });
     }
+  };
+
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Scale down to max 1024px for profile/logo (aggressive to stay under 1MB for nginx)
+          if (width > 1024) {
+            height = (height * 1024) / width;
+            width = 1024;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Use 60% quality for aggressive compression (still good visual quality)
+          let quality = 0.6;
+          let blob;
+
+          // Compress in a loop until under 900KB (safe margin for nginx 1MB limit)
+          const compressWithQuality = (q) => {
+            canvas.toBlob(
+              (compressedBlob) => {
+                blob = compressedBlob;
+                // If still too large and quality > 0.3, reduce quality and try again
+                if (blob.size > 900 * 1024 && q > 0.3) {
+                  compressWithQuality(q - 0.1);
+                } else {
+                  const compressedFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+                  console.log(`Compressed ${file.name}: ${(file.size / 1024).toFixed(2)}KB → ${(blob.size / 1024).toFixed(2)}KB`);
+                  resolve(compressedFile);
+                }
+              },
+              'image/jpeg',
+              q
+            );
+          };
+
+          compressWithQuality(quality);
+        };
+      };
+    });
   };
 
   const handleLogoChange = (e) => {
@@ -123,12 +179,19 @@ const Settings = () => {
         toast.error('Please select an image file');
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
+
+      // Size limit ko ya toh hata dein ya 50MB kar dein
+      // 50 * 1024 * 1024 = 52,428,800 bytes
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error('Image size should be less than 50MB');
         return;
       }
-      setGeneralSettings(prev => ({ ...prev, logo: file }));
-      setLogoPreview(URL.createObjectURL(file));
+
+      // Compress logo before upload to avoid nginx limits
+      compressImage(file).then(compressedFile => {
+        setGeneralSettings(prev => ({ ...prev, logo: compressedFile }));
+        setLogoPreview(URL.createObjectURL(compressedFile));
+      });
     }
   };
 
@@ -155,13 +218,19 @@ const Settings = () => {
       const response = await fetch(`${apiUrl}/api/admin/profile`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          // Do NOT set Content-Type for FormData - let browser set it
         },
         body: formDataToSend
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
-dsfh
+
       if (data.success) {
         toast.success('Profile updated successfully!');
         setProfileImage(null);
@@ -241,10 +310,16 @@ dsfh
       const response = await fetch(`${apiUrl}/api/admin/logo`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          // Do NOT set Content-Type for FormData
         },
         body: formDataToSend
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
 
       const data = await response.json();
 
@@ -252,7 +327,7 @@ dsfh
         toast.success('Logo uploaded successfully!');
         setGeneralSettings(prev => ({ ...prev, logo: null }));
         setLogoPreview(null);
-        
+
         // Trigger event to update navbar
         window.dispatchEvent(new Event('logoUpdated'));
       } else {
