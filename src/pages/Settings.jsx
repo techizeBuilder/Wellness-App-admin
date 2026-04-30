@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff, Bell, Globe, Shield, RefreshCw } from 'lucide-react';
+import { Save, Eye, EyeOff, Bell, Globe, Shield, RefreshCw, Percent } from 'lucide-react';
 import Card from '../components/Card';
-import { apiGet, apiPut } from '../utils/api';
+import { apiGet, apiPut, apiPatch } from '../utils/api';
 import config from '../utils/config';
 import toast from 'react-hot-toast';
 
@@ -28,13 +28,48 @@ const Settings = () => {
     logo: null,
   });
   const [logoPreview, setLogoPreview] = useState(null);
+  const [commissionRate, setCommissionRate] = useState(20);
+  const [savingCommission, setSavingCommission] = useState(false);
 
   // Load admin profile on mount
   useEffect(() => {
     fetchProfile();
     loadNotificationPreferences();
     loadGeneralSettings();
+    fetchCommissionRate();
   }, []);
+
+  const fetchCommissionRate = async () => {
+    try {
+      const response = await apiGet('/api/admin/experts/stats');
+      if (response.success && response.data?.stats?.commissionRate !== undefined) {
+        setCommissionRate(response.data.stats.commissionRate);
+      }
+    } catch (error) {
+      console.error('Error fetching commission rate:', error);
+    }
+  };
+
+  const handleSaveCommissionRate = async () => {
+    const rate = parseFloat(commissionRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      toast.error('Commission rate must be between 0 and 100');
+      return;
+    }
+    try {
+      setSavingCommission(true);
+      const response = await apiPatch('/api/admin/experts/commission-rate', { commissionRate: rate });
+      if (response.success) {
+        toast.success(`Commission rate updated to ${rate}%`);
+      } else {
+        throw new Error(response.message || 'Failed to update');
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to update commission rate');
+    } finally {
+      setSavingCommission(false);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -550,52 +585,91 @@ const Settings = () => {
           )}
 
           {activeTab === 'general' && (
-            <Card title="General Settings">
-              <div className="p-6 space-y-6">
-                <div>
-                  <label className="form-label">Logo</label>
-                  <div className="flex items-center space-x-6">
-                    <div className="relative">
-                      {logoPreview ? (
-                        <img
-                          src={logoPreview}
-                          alt="Logo"
-                          className="w-32 h-32 object-contain border border-gray-200 rounded p-2"
+            <>
+              <Card title="General Settings">
+                <div className="p-6 space-y-6">
+                  <div>
+                    <label className="form-label">Logo</label>
+                    <div className="flex items-center space-x-6">
+                      <div className="relative">
+                        {logoPreview ? (
+                          <img
+                            src={logoPreview}
+                            alt="Logo"
+                            className="w-32 h-32 object-contain border border-gray-200 rounded p-2"
+                          />
+                        ) : (
+                          <div className="w-32 h-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
+                            <span className="text-gray-500 text-sm text-center">No logo uploaded</span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <input
+                          type="file"
+                          id="logoInput"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleLogoChange}
                         />
-                      ) : (
-                        <div className="w-32 h-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
-                          <span className="text-gray-500 text-sm text-center">No logo uploaded</span>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <input
-                        type="file"
-                        id="logoInput"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleLogoChange}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('logoInput').click()}
-                        className="btn-primary mb-2"
-                      >
-                        Upload Logo
-                      </button>
-                      <p className="text-xs text-gray-500">Supported formats: JPG, PNG, GIF, WebP</p>
-                      <p className="text-xs text-gray-500">Max size: 5MB</p>
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('logoInput').click()}
+                          className="btn-primary mb-2"
+                        >
+                          Upload Logo
+                        </button>
+                        <p className="text-xs text-gray-500">Supported formats: JPG, PNG, GIF, WebP</p>
+                        <p className="text-xs text-gray-500">Max size: 5MB</p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-end">
-                  <button onClick={handleSaveGeneralSettings} className="btn-primary">
-                    Save Settings
-                  </button>
+                  <div className="flex justify-end">
+                    <button onClick={handleSaveGeneralSettings} className="btn-primary">
+                      Save Settings
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+
+              {/* Commission Rate Card */}
+              <Card title="Commission Settings" className="mt-6">
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="form-label flex items-center gap-2">
+                      <Percent size={16} className="text-orange-500" />
+                      Admin Commission Rate (%)
+                    </label>
+                    <p className="text-sm text-gray-500 mb-3">
+                      This percentage will be deducted from each expert's total earnings as admin commission.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={commissionRate}
+                        onChange={(e) => setCommissionRate(e.target.value)}
+                        className="w-32 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      />
+                      <span className="text-gray-600 font-medium">%</span>
+                      <button
+                        onClick={handleSaveCommissionRate}
+                        disabled={savingCommission}
+                        className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                      >
+                        {savingCommission ? 'Saving...' : 'Save Rate'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Current rate: {commissionRate}% — For every ₹100 earned by experts, ₹{commissionRate} goes to admin.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </>
           )}
         </div>
       </div>

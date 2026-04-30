@@ -14,6 +14,8 @@ import {
   Star,
   Clock,
   IndianRupee,
+  TrendingUp,
+  Percent,
   X,
   ChevronLeft,
   ChevronRight,
@@ -27,8 +29,12 @@ const Experts = () => {
     totalExperts: 0,
     activeExperts: 0,
     inactiveExperts: 0,
-    averageRating: 0
+    averageRating: 0,
+    totalRevenue: 0,
+    totalCommission: 0,
+    commissionRate: 20
   });
+  const [expertEarningsMap, setExpertEarningsMap] = useState({});
 
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
@@ -180,13 +186,35 @@ const Experts = () => {
       const response = await apiGet('/api/admin/experts/stats');
 
       if (response.success && response.data?.stats) {
-        setStats(response.data.stats);
+        setStats(prev => ({ ...prev, ...response.data.stats }));
       } else {
         throw new Error(response.message || 'Failed to fetch stats');
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
       toast.error('Failed to fetch stats: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  // Fetch per-expert earnings
+  const fetchExpertEarnings = async () => {
+    try {
+      const response = await apiGet('/api/admin/experts/earnings');
+      if (response.success && response.data) {
+        // Build a map of expertId -> earnings
+        const map = {};
+        (response.data.experts || []).forEach((e) => {
+          map[e.expertId] = e;
+        });
+        setExpertEarningsMap(map);
+        // Update summary stats
+        if (response.data.summary) {
+          const { totalRevenue, totalCommission, commissionRate } = response.data.summary;
+          setStats(prev => ({ ...prev, totalRevenue, totalCommission, commissionRate }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching expert earnings:', error);
     }
   };
 
@@ -237,6 +265,7 @@ const Experts = () => {
 
   useEffect(() => {
     fetchSpecializations();
+    fetchExpertEarnings();
   }, []);
 
   const clearFilters = () => {
@@ -461,7 +490,7 @@ const Experts = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Card className="p-4">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -506,6 +535,30 @@ const Experts = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Avg Rating</p>
               <p className="text-2xl font-bold text-gray-900">{(stats.averageRating || 0).toFixed(1)}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <TrendingUp size={24} className="text-emerald-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Total Revenue</p>
+              <p className="text-xl font-bold text-gray-900">₹{(stats.totalRevenue || 0).toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Percent size={24} className="text-orange-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Admin Commission ({stats.commissionRate || 20}%)</p>
+              <p className="text-xl font-bold text-gray-900">₹{(stats.totalCommission || 0).toLocaleString('en-IN')}</p>
             </div>
           </div>
         </Card>
@@ -648,6 +701,12 @@ const Experts = () => {
                         Rate
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total Earned
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Admin Commission
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -706,9 +765,27 @@ const Experts = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm font-semibold text-emerald-700">
+                            <IndianRupee size={14} className="mr-0.5" />
+                            {((expertEarningsMap[expert._id || expert.id] || {}).totalAmount || 0).toLocaleString('en-IN')}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {(expertEarningsMap[expert._id || expert.id] || {}).sessionCount || 0} sessions
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm font-semibold text-orange-600">
+                            <IndianRupee size={14} className="mr-0.5" />
+                            {((expertEarningsMap[expert._id || expert.id] || {}).adminCommission || 0).toLocaleString('en-IN')}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {stats.commissionRate || 20}% cut
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${expert.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
                             }`}>
                             {expert.status ? expert.status.charAt(0).toUpperCase() + expert.status.slice(1) : 'Active'}
                           </span>
@@ -745,8 +822,8 @@ const Experts = () => {
                             <button
                               onClick={() => toggleExpertStatus(expert)}
                               className={`p-1 rounded-full ${expert.status === 'active'
-                                  ? 'text-orange-600 hover:text-orange-900 hover:bg-orange-100'
-                                  : 'text-green-600 hover:text-green-900 hover:bg-green-100'
+                                ? 'text-orange-600 hover:text-orange-900 hover:bg-orange-100'
+                                : 'text-green-600 hover:text-green-900 hover:bg-green-100'
                                 }`}
                               title={expert.status === 'active' ? 'Deactivate Expert' : 'Activate Expert'}
                             >
@@ -856,8 +933,8 @@ const Experts = () => {
               <div>
                 <label className="font-medium text-gray-700">Status:</label>
                 <span className={`px-2 py-1 text-xs rounded-full ${selectedExpert.status === 'active'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
                   }`}>
                   {selectedExpert.status}
                 </span>
@@ -915,8 +992,8 @@ const Experts = () => {
                   <div>
                     <label className="font-medium text-gray-700">Status:</label>
                     <span className={`px-2 py-1 text-xs rounded-full ${selectedExpert.bankAccount.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
                       }`}>
                       {selectedExpert.bankAccount.isActive ? 'Active' : 'Inactive'}
                     </span>
@@ -1174,8 +1251,8 @@ const Experts = () => {
                       <div>
                         <h4 className="text-lg font-semibold text-gray-900">{plan.name}</h4>
                         <span className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${plan.type === 'monthly'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-blue-100 text-blue-800'
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-blue-100 text-blue-800'
                           }`}>
                           {plan.type === 'monthly' ? 'Monthly Subscription' : 'Single Class'}
                         </span>
