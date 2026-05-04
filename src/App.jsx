@@ -11,6 +11,7 @@ import Experts from './pages/Experts';
 import Admins from './pages/Admins';
 import Bookings from './pages/Bookings';
 import Payments from './pages/Payments';
+import ExpertBankAccounts from './pages/ExpertBankAccounts';
 import Subscriptions from './pages/Subscriptions';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
@@ -117,6 +118,16 @@ function App() {
               <ProtectedRoute>
                 <MainLayout>
                   <Payments />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expert-bank-accounts"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <ExpertBankAccounts />
                 </MainLayout>
               </ProtectedRoute>
             }

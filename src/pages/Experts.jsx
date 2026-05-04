@@ -32,7 +32,7 @@ const Experts = () => {
     averageRating: 0,
     totalRevenue: 0,
     totalCommission: 0,
-    commissionRate: 20
+    commissionRate: 15
   });
   const [expertEarningsMap, setExpertEarningsMap] = useState({});
 
@@ -557,7 +557,7 @@ const Experts = () => {
               <Percent size={24} className="text-orange-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Admin Commission ({stats.commissionRate || 20}%)</p>
+              <p className="text-sm font-medium text-gray-500">Admin Commission ({stats.commissionRate ?? 15}%)</p>
               <p className="text-xl font-bold text-gray-900">₹{(stats.totalCommission || 0).toLocaleString('en-IN')}</p>
             </div>
           </div>
@@ -776,10 +776,25 @@ const Experts = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm font-semibold text-orange-600">
                             <IndianRupee size={14} className="mr-0.5" />
-                            {((expertEarningsMap[expert._id || expert.id] || {}).adminCommission || 0).toLocaleString('en-IN')}
+                            {(() => {
+                              const earning = expertEarningsMap[expert._id || expert.id] || {};
+                              // Per-expert override (DB) > earnings record > global default 15
+                              const rate = expert.commissionRate != null
+                                ? expert.commissionRate
+                                : (earning.commissionRate != null
+                                  ? earning.commissionRate
+                                  : (stats.commissionRate ?? 15));
+                              const total = earning.totalAmount || 0;
+                              const commission = Math.round((total * rate) / 100);
+                              return commission.toLocaleString('en-IN');
+                            })()}
                           </div>
                           <div className="text-xs text-gray-400">
-                            {stats.commissionRate || 20}% cut
+                            {(expert.commissionRate != null
+                              ? expert.commissionRate
+                              : (expertEarningsMap[expert._id || expert.id]?.commissionRate
+                                ?? stats.commissionRate
+                                ?? 15))}% cut
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -929,6 +944,14 @@ const Experts = () => {
               <div>
                 <label className="font-medium text-gray-700">Hourly Rate:</label>
                 <p className="text-gray-900">₹{selectedExpert.hourlyRate}/hr</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Commission Rate:</label>
+                <p className="text-gray-900">
+                  {selectedExpert.commissionRate !== undefined && selectedExpert.commissionRate !== null
+                    ? `${selectedExpert.commissionRate}%`
+                    : `${stats.commissionRate ?? 15}% (Global)`}
+                </p>
               </div>
               <div>
                 <label className="font-medium text-gray-700">Status:</label>

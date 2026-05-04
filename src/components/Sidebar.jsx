@@ -14,7 +14,8 @@ import {
   X,
   ChevronLeft,
   Shield,
-  FileText
+  FileText,
+  Banknote
 } from 'lucide-react';
 import { apiGet } from '../utils/api';
 import { getFullImageUrl } from '../utils/imageUrl';
@@ -73,6 +74,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/admins', name: 'Admin Management', icon: Shield, permission: 'manage_admins' },
     { path: '/bookings', name: 'Bookings', icon: Calendar, permission: 'manage_bookings' },
     { path: '/payments', name: 'Payments', icon: CreditCard, permission: 'manage_payments' },
+    { path: '/expert-bank-accounts', name: 'Expert Payouts', icon: Banknote, permission: 'manage_payments' },
     { path: '/subscriptions', name: 'Subscriptions', icon: Package, permission: 'manage_subscriptions' },
     { path: '/content', name: 'Content', icon: FileText, permission: 'manage_content' },
     { path: '/reports', name: 'Reports', icon: BarChart3, permission: 'view_reports' },
